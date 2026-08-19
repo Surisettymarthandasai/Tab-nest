@@ -461,12 +461,21 @@ body.theme-cyber { --accent:#FF00FF; --text:#00FFFF; }
       <div class="section-label">Recently opened</div>
       <div class="recent-scroll" id="recentList"></div>
     </section>
-    <div class="section-label" id="groupsLabel">Your nests</div>
+    <!-- Nests Section -->
+    <div class="section-label" id="groupsLabel" style="display:none">Your nests</div>
     <div id="groupGrid"></div>
+
+    <!-- Unassigned / Standalone Links Section -->
+    <section id="unassignedSection" style="display:none; margin-top:20px;">
+      <div class="section-label" id="unassignedLabel">Saved Links</div>
+      <div id="unassignedList"></div>
+    </section>
+
+    <!-- Empty state -->
     <div id="emptyState">
       <div class="empty-anim">🪺</div>
       <div class="empty-title">Every nest starts with one twig.</div>
-      <div class="empty-sub">Add your first link and give it a home. Tap <strong>+</strong> to begin.</div>
+      <div class="empty-sub">Add your first link. Tap <strong>+</strong> to begin.</div>
     </div>
     <div id="noSearchState">
       <div class="search-anim">🔍</div>
@@ -536,7 +545,7 @@ body.theme-cyber { --accent:#FF00FF; --text:#00FFFF; }
     <input class="modal-input" type="url" id="linkUrl" placeholder="https://…" autocomplete="url"/>
     <div class="modal-label">Title</div>
     <input class="modal-input" type="text" id="linkTitle" placeholder="Auto-filled, or enter your own"/>
-    <div class="modal-label">Choose a nest</div>
+    <div class="modal-label">Choose a nest (optional)</div>
     <div class="group-chips" id="groupChipPicker"></div>
     <div class="modal-label">Note (optional)</div>
     <textarea class="modal-input" id="linkNote" placeholder="Why do you keep this link?"></textarea>
@@ -798,11 +807,17 @@ function render(q=''){
   const empty=document.getElementById('emptyState');
   const noSearch=document.getElementById('noSearchState');
   const recentSec=document.getElementById('recentSection');
-  const lbl=document.getElementById('groupsLabel');
+  const groupsLbl=document.getElementById('groupsLabel');
+  const unassignedSec=document.getElementById('unassignedSection');
+  const unassignedList=document.getElementById('unassignedList');
+  const unassignedLbl=document.getElementById('unassignedLabel');
 
-  // Recently opened
+  const ql=q.toLowerCase();
+  if(ql==='tabnest')openAbout();
+
+  // 1. Recently opened
   const recent=[...state.links].filter(l=>l.lastOpenedAt).sort((a,b)=>b.lastOpenedAt-a.lastOpenedAt).slice(0,10);
-  if(recent.length&&!q){
+  if(recent.length&&!ql){
     recentSec.style.display='block';
     document.getElementById('recentList').innerHTML=recent.map(l=>`
       <div class="recent-chip" data-lid="${l.id}" title="${escHtml(l.title||l.url)}">
@@ -812,40 +827,87 @@ function render(q=''){
     document.querySelectorAll('.recent-chip').forEach(c=>c.addEventListener('click',e=>openLink(c.dataset.lid,e)));
   } else { recentSec.style.display='none'; }
 
-  if(!state.groups.length){grid.innerHTML='';empty.style.display='flex';noSearch.style.display='none';lbl.style.display='none';return;}
-  empty.style.display='none';lbl.style.display='block';
+  // 2. Empty check
+  const totalLinks=state.links.length;
+  const totalGroups=state.groups.length;
+  if(totalLinks===0 && totalGroups===0){
+    grid.innerHTML='';
+    if(unassignedList) unassignedList.innerHTML='';
+    empty.style.display='flex';
+    noSearch.style.display='none';
+    if(groupsLbl) groupsLbl.style.display='none';
+    if(unassignedSec) unassignedSec.style.display='none';
+    return;
+  }
+  empty.style.display='none';
 
-  const ql=q.toLowerCase();
-  if(ql==='tabnest')openAbout();
-
-  grid.innerHTML=state.groups.map((g,gi)=>{
-    const links=state.links.filter(l=>l.groupId===g.id).sort((a,b)=>(a.order||0)-(b.order||0));
-    const matchLinks=ql?links.filter(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql)):links;
-    const show=ql?matchLinks:links;
-    const matches=!ql||(g.name.toLowerCase().includes(ql)||matchLinks.length>0);
-    const overflow=show.length-4;
-    const tiles=[0,1,2,3].map(i=>{
-      if(i===3&&overflow>0)return `<div class="tile"><span class="tile-overflow">+${overflow}</span></div>`;
-      if(i<show.length)return `<div class="tile" data-lid="${show[i].id}" data-url="${escHtml(show[i].url)}">${faviconImg(show[i].url)}</div>`;
-      return `<div class="tile tile-empty"></div>`;
+  // 3. Render Groups (if any)
+  let groupMatchesCount = 0;
+  if(totalGroups > 0){
+    grid.style.display='grid';
+    grid.innerHTML=state.groups.map((g,gi)=>{
+      const links=state.links.filter(l=>l.groupId===g.id).sort((a,b)=>(a.order||0)-(b.order||0));
+      const matchLinks=ql?links.filter(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql)):links;
+      const show=ql?matchLinks:links;
+      const matches=!ql||(g.name.toLowerCase().includes(ql)||matchLinks.length>0);
+      if(matches) groupMatchesCount++;
+      const overflow=show.length-4;
+      const tiles=[0,1,2,3].map(i=>{
+        if(i===3&&overflow>0)return `<div class="tile"><span class="tile-overflow">+${overflow}</span></div>`;
+        if(i<show.length)return `<div class="tile" data-lid="${show[i].id}" data-url="${escHtml(show[i].url)}">${faviconImg(show[i].url)}</div>`;
+        return `<div class="tile tile-empty"></div>`;
+      }).join('');
+      return `<div class="group-card ${ql&&!matches?'search-dim':''} ${ql&&matches?'search-match':''}" data-gid="${g.id}" style="${ql&&matches?`--match-color:${g.color}`:''}; animation-delay:${gi*0.04}s">
+        <div class="card-header">
+          <div class="card-dot" style="background:${g.color}"></div>
+          <div class="card-name">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>
+          <button class="card-kebab" data-gid="${g.id}" aria-label="Options">⋮</button>
+        </div>
+        <div class="card-tiles" data-gid="${g.id}">${tiles}</div>
+      </div>`;
     }).join('');
-    return `<div class="group-card ${ql&&!matches?'search-dim':''} ${ql&&matches?'search-match':''}" data-gid="${g.id}" style="${ql&&matches?`--match-color:${g.color}`:''}; animation-delay:${gi*0.04}s">
-      <div class="card-header">
-        <div class="card-dot" style="background:${g.color}"></div>
-        <div class="card-name">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>
-        <button class="card-kebab" data-gid="${g.id}" aria-label="Options">⋮</button>
-      </div>
-      <div class="card-tiles" data-gid="${g.id}">${tiles}</div>
-    </div>`;
-  }).join('');
+    groupsLbl.style.display = (!ql || groupMatchesCount > 0) ? 'block' : 'none';
+  } else {
+    groupsLbl.style.display='none';
+    grid.innerHTML='';
+    grid.style.display='none';
+  }
 
-  const hasMatches=!ql||state.groups.some(g=>{
-    const ls=state.links.filter(l=>l.groupId===g.id);
-    return g.name.toLowerCase().includes(ql)||ls.some(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql));
-  });
-  noSearch.style.display=ql&&!hasMatches?'flex':'none';
+  // 4. Render Unassigned / Standalone Links
+  const unassigned=state.links.filter(l=>!l.groupId || !state.groups.some(g=>g.id===l.groupId)).sort((a,b)=>(a.order||0)-(b.order||0));
+  const matchUnassigned=ql ? unassigned.filter(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql)) : unassigned;
 
-  // Wire cards
+  if(unassigned.length > 0){
+    unassignedSec.style.display='block';
+    unassignedLbl.textContent = totalGroups > 0 ? 'Saved Links' : 'Your Links';
+    if(matchUnassigned.length > 0){
+      unassignedList.innerHTML = matchUnassigned.map(l=>`
+        <div class="link-item" data-lid="${l.id}">
+          ${faviconImg(l.url,'link-favicon')}
+          <div class="link-info">
+            <div class="link-title">${escHtml(l.title||l.url)}</div>
+            <div class="link-url">${escHtml(l.url)}</div>
+            ${l.note?`<div class="link-note">${escHtml(l.note)}</div>`:''}
+          </div>
+          <div class="link-actions">
+            <button class="link-action-btn" data-lid="${l.id}" aria-label="Options">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>`).join('');
+    } else {
+      unassignedList.innerHTML = '';
+    }
+  } else {
+    unassignedSec.style.display='none';
+    unassignedList.innerHTML='';
+  }
+
+  // 5. No search matches
+  const hasMatches = !ql || (groupMatchesCount > 0) || (matchUnassigned.length > 0);
+  noSearch.style.display = (ql && !hasMatches) ? 'flex' : 'none';
+
+  // 6. Wire group cards
   document.querySelectorAll('.group-card').forEach(card=>{
     card.addEventListener('click',e=>{
       if(e.target.closest('.card-kebab')||e.target.closest('.tile[data-lid]'))return;
@@ -857,6 +919,14 @@ function render(q=''){
   });
   document.querySelectorAll('.card-kebab').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();ctxGroupId=btn.dataset.gid;openCtx('ctxMenu',btn);});
+  });
+
+  // 7. Wire unassigned link items
+  unassignedList.querySelectorAll('.link-item').forEach(item=>{
+    item.addEventListener('click',e=>{if(e.target.closest('.link-action-btn'))return;ripple(item,e);openLink(item.dataset.lid,e);});
+  });
+  unassignedList.querySelectorAll('.link-action-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{e.stopPropagation();ctxLinkId=btn.dataset.lid;openCtx('linkCtxMenu',btn);});
   });
 }
 
@@ -925,9 +995,9 @@ function closeAllModals(){document.querySelectorAll('.modal-overlay').forEach(m=
 // LINK MODAL
 function openAddLinkModal(prefillGid){
   editingLinkId=null;
-  document.getElementById('linkModalTitle').textContent='Give this link a home';
+  document.getElementById('linkModalTitle').textContent='Add link';
   ['linkUrl','linkTitle','linkNote'].forEach(id=>document.getElementById(id).value='');
-  selectedGroupForLink=prefillGid||state.groups[0]?.id||null;
+  selectedGroupForLink=prefillGid||'';
   renderGroupChipPicker('groupChipPicker',selectedGroupForLink);
   openModal('linkModal');
   setTimeout(()=>document.getElementById('linkUrl').focus(),350);
@@ -939,20 +1009,17 @@ function openEditLinkModal(lid){
   document.getElementById('linkUrl').value=l.url;
   document.getElementById('linkTitle').value=l.title||'';
   document.getElementById('linkNote').value=l.note||'';
-  selectedGroupForLink=l.groupId;
-  renderGroupChipPicker('groupChipPicker',l.groupId);
+  selectedGroupForLink=l.groupId||'';
+  renderGroupChipPicker('groupChipPicker',selectedGroupForLink);
   openModal('linkModal');
 }
 function renderGroupChipPicker(cid,selected){
   const c=document.getElementById(cid);
-  let html='';
-  if(state.groups.length===0){
-    html=`<div class="group-chip selected" data-gid="__auto__" style="--chip-color:#F59E0B">📥 Quick Links (Auto)</div>`;
-    selectedGroupForLink='__auto__';
-  } else {
-    html=state.groups.map(g=>`<div class="group-chip${g.id===selected?' selected':''}" data-gid="${g.id}" style="--chip-color:${g.color}">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>`).join('');
-    html+=`<div class="group-chip" id="addNestFromLinkModal" style="border-style:dashed;border-color:rgba(240,165,0,0.6);color:var(--accent)">+ New nest</div>`;
+  let html=`<div class="group-chip${(!selected||selected==='')?' selected':''}" data-gid="" style="--chip-color:var(--text-muted)">🌐 No nest (Unsorted)</div>`;
+  if(state.groups.length > 0){
+    html+=state.groups.map(g=>`<div class="group-chip${g.id===selected?' selected':''}" data-gid="${g.id}" style="--chip-color:${g.color}">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>`).join('');
   }
+  html+=`<div class="group-chip" id="addNestFromLinkModal" style="border-style:dashed;border-color:rgba(240,165,0,0.6);color:var(--accent)">+ New nest</div>`;
   c.innerHTML=html;
   c.querySelectorAll('.group-chip[data-gid]').forEach(chip=>{
     chip.addEventListener('click',()=>{
@@ -976,25 +1043,14 @@ function saveLink(){
   if(!/^https?:\/\//i.test(url))url='https://'+url;
   const title=document.getElementById('linkTitle').value.trim()||titleFromUrl(url);
   const note=document.getElementById('linkNote').value.trim();
-  let gid=selectedGroupForLink;
-  if(!gid||gid==='__auto__'||!state.groups.some(g=>g.id===gid)){
-    if(state.groups.length>0&&gid!=='__auto__'){
-      gid=state.groups[0].id;
-    } else {
-      let quickGroup=state.groups.find(g=>g.name.toLowerCase()==='quick links');
-      if(!quickGroup){
-        quickGroup={id:uid(),name:'Quick Links',color:'#F59E0B',emoji:'📥',order:state.groups.length+1};
-        state.groups.push(quickGroup);
-      }
-      gid=quickGroup.id;
-    }
-  }
+  const gid=selectedGroupForLink||'';
+
   if(editingLinkId){
     const idx=state.links.findIndex(x=>x.id===editingLinkId);
     if(idx>-1)Object.assign(state.links[idx],{url,title,note,groupId:gid});
     toast('Link updated ✓');
   } else {
-    const maxOrder=state.links.filter(l=>l.groupId===gid).reduce((m,l)=>Math.max(m,l.order||0),0);
+    const maxOrder=state.links.filter(l=>(l.groupId||'')===gid).reduce((m,l)=>Math.max(m,l.order||0),0);
     state.links.push({id:uid(),groupId:gid,url,title,note,faviconUrl:FAVICON(url),createdAt:Date.now(),lastOpenedAt:null,order:maxOrder+1});
     toast('Link saved 🪺');
   }
@@ -1051,7 +1107,7 @@ function saveGroup(){
 function deleteGroup(gid){
   if(!confirm('Release this nest back to the wild? All links inside will be freed.'))return;
   state.groups=state.groups.filter(g=>g.id!==gid);
-  state.links=state.links.filter(l=>l.groupId!==gid);
+  state.links.forEach(l=>{ if(l.groupId===gid) l.groupId=''; });
   save();toast('Nest released. Feathers scattered. 🪶');render(document.getElementById('searchInput').value);
 }
 function deleteLink(lid){
@@ -1065,8 +1121,12 @@ function deleteLink(lid){
 function openMoveModal(lid){
   const l=state.links.find(x=>x.id===lid);if(!l)return;
   const c=document.getElementById('moveGroupChips');
+  let html='';
+  if(l.groupId){
+    html+=`<div class="group-chip" data-gid="" style="--chip-color:var(--text-muted)">🌐 Remove from nest (Unassign)</div>`;
+  }
   const availableGroups=state.groups.filter(g=>g.id!==l.groupId);
-  let html=availableGroups.map(g=>`<div class="group-chip" data-gid="${g.id}" style="--chip-color:${g.color}">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>`).join('');
+  html+=availableGroups.map(g=>`<div class="group-chip" data-gid="${g.id}" style="--chip-color:${g.color}">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>`).join('');
   html+=`<div class="group-chip" id="moveCreateNewNestBtn" style="border-style:dashed;border-color:var(--accent);color:var(--accent)">+ Create new nest</div>`;
   c.innerHTML=html;
   c.querySelectorAll('.group-chip[data-gid]').forEach(chip=>{
