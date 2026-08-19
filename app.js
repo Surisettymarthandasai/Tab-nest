@@ -12,8 +12,87 @@ const COLORS = [
 const EMOJIS = ['📁','🎯','🔗','💡','🎮','📚','🎵','🛒','💼','🌐','🔬','🎨','📱','🏠','✈️','⚡','🧪','🎭','🔥','🌙'];
 const FAVICON = url => { try{const d=new URL(url).hostname;return `https://www.google.com/s2/favicons?domain=${d}&sz=64`;}catch{return '';} };
 
+const DEFAULT_DATA = {
+  groups: [
+    { id: 'g-ai', name: 'AI & Tools', color: '#8B5CF6', emoji: '🤖', order: 1 },
+    { id: 'g-anime', name: 'Anime & Manga', color: '#F43F5E', emoji: '🎬', order: 2 },
+    { id: 'g-drama', name: 'Drama & Streams', color: '#F59E0B', emoji: '🍿', order: 3 },
+    { id: 'g-dev', name: 'Dev & Tech', color: '#14B8A6', emoji: '💻', order: 4 },
+    { id: 'g-college', name: 'College & Learning', color: '#0EA5E9', emoji: '🎓', order: 5 },
+    { id: 'g-design', name: 'Design & 3D', color: '#EC4899', emoji: '🎨', order: 6 },
+    { id: 'g-media', name: 'Music & Social', color: '#F97316', emoji: '🎵', order: 7 }
+  ],
+  links: [
+    // 🤖 AI & Tools
+    { id: 'l-chatgpt', groupId: 'g-ai', title: 'ChatGPT', url: 'https://chatgpt.com/', note: 'OpenAI conversational assistant', faviconUrl: 'https://www.google.com/s2/favicons?domain=chatgpt.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-claude', groupId: 'g-ai', title: 'Claude AI', url: 'https://claude.ai/new', note: 'Anthropic AI assistant', faviconUrl: 'https://www.google.com/s2/favicons?domain=claude.ai&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-gemini', groupId: 'g-ai', title: 'Google Gemini', url: 'https://gemini.google.com/u/1/app?pageId=none', note: 'Google multimodal model', faviconUrl: 'https://www.google.com/s2/favicons?domain=gemini.google.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 },
+    { id: 'l-perplexity', groupId: 'g-ai', title: 'Perplexity AI', url: 'https://www.perplexity.ai/', note: 'AI-powered search engine', faviconUrl: 'https://www.google.com/s2/favicons?domain=perplexity.ai&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 4 },
+    { id: 'l-aistudio', groupId: 'g-ai', title: 'Google AI Studio', url: 'https://aistudio.google.com/', note: 'Prototyping with Gemini models', faviconUrl: 'https://www.google.com/s2/favicons?domain=aistudio.google.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 5 },
+    { id: 'l-napkin', groupId: 'g-ai', title: 'Napkin AI', url: 'https://www.napkin.ai/', note: 'Turn text into visuals', faviconUrl: 'https://www.google.com/s2/favicons?domain=napkin.ai&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 6 },
+    { id: 'l-aiforwork', groupId: 'g-ai', title: 'AI for Work', url: 'https://www.aiforwork.co/', note: 'AI prompts & workflows', faviconUrl: 'https://www.google.com/s2/favicons?domain=aiforwork.co&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 7 },
+    { id: 'l-aiprep', groupId: 'g-ai', title: 'AIPrep', url: 'https://www.aiprep.in/', note: 'AI learning & interview prep', faviconUrl: 'https://www.google.com/s2/favicons?domain=aiprep.in&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 8 },
+    { id: 'l-staying', groupId: 'g-ai', title: 'Staying Ahead', url: 'https://stayingahead.com/', note: 'Free AI community on WhatsApp', faviconUrl: 'https://www.google.com/s2/favicons?domain=stayingahead.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 9 },
+    { id: 'l-creao', groupId: 'g-ai', title: 'Creao AI', url: 'https://creao.ai/', note: 'Build AI-native apps without code', faviconUrl: 'https://www.google.com/s2/favicons?domain=creao.ai&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 10 },
+
+    // 🎬 Anime & Manga
+    { id: 'l-anikoto', groupId: 'g-anime', title: 'Anikoto Stream', url: 'https://anikoto.cz/home', note: 'HD anime online with Sub & Dub', faviconUrl: 'https://www.google.com/s2/favicons?domain=anikoto.cz&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-anikotod', groupId: 'g-anime', title: 'Anikoto Domains', url: 'https://anikoto.site/#domains', note: 'Official mirror domains', faviconUrl: 'https://www.google.com/s2/favicons?domain=anikoto.site&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-gogoanime', groupId: 'g-anime', title: 'GogoAnime', url: 'https://gogoanimes.cv/', note: 'Anime streaming portal', faviconUrl: 'https://www.google.com/s2/favicons?domain=gogoanimes.cv&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 },
+    { id: 'l-mangadex', groupId: 'g-anime', title: 'MangaDex', url: 'https://mangadex.org/search?q=Jobless+reincarnation+', note: 'Manga reader & community', faviconUrl: 'https://www.google.com/s2/favicons?domain=mangadex.org&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 4 },
+    { id: 'l-alya', groupId: 'g-anime', title: 'Alya Sometimes Hides Her Feelings in Russian', url: 'https://mangafire.to/title/m6nz-alya-sometimes-hides-her-feelings-in-russian/volume/240899', note: 'MangaFire chapter reader', faviconUrl: 'https://www.google.com/s2/favicons?domain=mangafire.to&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 5 },
+    { id: 'l-secretary', groupId: 'g-anime', title: 'Try to Tame Me, Secretary Cha', url: 'https://mangafire.to/title/xvry8-try-to-tame-me-secretary-chaa/chapter/1783134', note: 'MangaFire webtoon reader', faviconUrl: 'https://www.google.com/s2/favicons?domain=mangafire.to&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 6 },
+    { id: 'l-mangaup', groupId: 'g-anime', title: 'Manga UP! — Love Unseen', url: 'https://global.manga-up.com/search/result?word=Love%20Unseen%20Beneath%20the%20Clear%20Night%20Sky', note: 'Manga UP reader', faviconUrl: 'https://www.google.com/s2/favicons?domain=global.manga-up.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 7 },
+    { id: 'l-animesalt', groupId: 'g-anime', title: 'Anime Salt (Telugu)', url: 'https://animesalt.link/category/language/telugu/', note: 'Telugu dubbed anime series', faviconUrl: 'https://www.google.com/s2/favicons?domain=animesalt.link&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 8 },
+    { id: 'l-mal', groupId: 'g-anime', title: 'MyAnimeList — Fall 2026', url: 'https://myanimelist.net/anime/season/2026/fall', note: 'Seasonal anime database', faviconUrl: 'https://www.google.com/s2/favicons?domain=myanimelist.net&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 9 },
+    { id: 'l-enma', groupId: 'g-anime', title: 'Enma Anime', url: 'https://www.enma.lol/home', note: 'HiAnime & AniWatch alternative', faviconUrl: 'https://www.google.com/s2/favicons?domain=enma.lol&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 10 },
+    { id: 'l-toonverse', groupId: 'g-anime', title: 'Daytime Star — ToonVerse', url: 'https://toonverse.net/read/daytime-star/73', note: 'ToonVerse webtoon reader', faviconUrl: 'https://www.google.com/s2/favicons?domain=toonverse.net&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 11 },
+    { id: 'l-everythingmoe', groupId: 'g-anime', title: 'EverythingMoe', url: 'https://everythingmoe.com/', note: 'Index of best Anime/Manga sites', faviconUrl: 'https://www.google.com/s2/favicons?domain=everythingmoe.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 12 },
+    { id: 'l-comix', groupId: 'g-anime', title: 'Toumei na Yoru ni Kakeru-kun', url: 'https://comix.ws/title/6g38-toumei-na-yoru-ni-kakeru-kun-to-me-ni-mienai-koi-wo-shita', note: 'Comix reader', faviconUrl: 'https://www.google.com/s2/favicons?domain=comix.ws&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 13 },
+    { id: 'l-eminence', groupId: 'g-anime', title: 'The Eminence in Shadow', url: 'https://anikoto.cz/watch/the-eminence-in-shadow-pqsq0/ep-6', note: 'Anikoto Episode stream', faviconUrl: 'https://www.google.com/s2/favicons?domain=anikoto.cz&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 14 },
+
+    // 🍿 Drama & Streams
+    { id: 'l-kisskh', groupId: 'g-drama', title: 'KissKH', url: 'https://kisskh.nl/', note: 'Asian drama & anime stream', faviconUrl: 'https://www.google.com/s2/favicons?domain=kisskh.nl&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-kisskhis', groupId: 'g-drama', title: 'KissKH — What Lies Beneath', url: 'https://kisskh.is/', note: 'KissKH mirror', faviconUrl: 'https://www.google.com/s2/favicons?domain=kisskh.is&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-forever', groupId: 'g-drama', title: 'Forever and Ever Ep 15', url: 'https://kisskh.is/Drama/Forever-and-Ever---One-and-Only-2/Episode-15?id=3629&ep=75505&page=0&pageSize=100', note: 'KissKH drama episode', faviconUrl: 'https://www.google.com/s2/favicons?domain=kisskh.is&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 },
+    { id: 'l-lovescenery', groupId: 'g-drama', title: 'Love Scenery Ep 7', url: 'https://kisskh.ovh/Drama/Love-Scenery--2021-/Episode-7?id=778&ep=43000&page=0&pageSize=100', note: 'KissKH drama stream', faviconUrl: 'https://www.google.com/s2/favicons?domain=kisskh.ovh&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 4 },
+    { id: 'l-eatrunlove', groupId: 'g-drama', title: 'Eat Run Love Ep 22', url: 'https://kisskh.ovh/Drama/Eat-Run-Love/Episode-22?id=9507&ep=180771&page=0&pageSize=100&tm=0', note: 'KissKH drama stream', faviconUrl: 'https://www.google.com/s2/favicons?domain=kisskh.ovh&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 5 },
+    { id: 'l-net11', groupId: 'g-drama', title: 'Net11', url: 'https://net11.cc/home', note: 'Streaming portal', faviconUrl: 'https://www.google.com/s2/favicons?domain=net11.cc&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 6 },
+    { id: 'l-rivestream', groupId: 'g-drama', title: 'RiveStream', url: 'https://www.rivestream.app/', note: 'Modern streaming app', faviconUrl: 'https://www.google.com/s2/favicons?domain=rivestream.app&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 7 },
+    { id: 'l-turkish1', groupId: 'g-drama', title: 'Sevdigim Sensin Ep 10', url: 'https://ahs.turkish123.com/sevdigim-sensin-episode-10/', note: 'Turkish123 series', faviconUrl: 'https://www.google.com/s2/favicons?domain=ahs.turkish123.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 8 },
+    { id: 'l-turkish2', groupId: 'g-drama', title: 'Arafta Ep 100', url: 'https://ahs.turkish123.com/arafta-episode-101/', note: 'Turkish123 series', faviconUrl: 'https://www.google.com/s2/favicons?domain=ahs.turkish123.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 9 },
+    { id: 'l-dramacool', groupId: 'g-drama', title: 'Perfect Crown Ep 7', url: 'https://dramacool9.com.ro/perfect-crown-2026-episode-7.html', note: 'DramaCool English Sub', faviconUrl: 'https://www.google.com/s2/favicons?domain=dramacool9.com.ro&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 10 },
+    { id: 'l-fmhyvideo', groupId: 'g-drama', title: 'FMHY Video Wiki', url: 'https://fmhy.vercel.app/video', note: 'Curated video streaming resources', faviconUrl: 'https://www.google.com/s2/favicons?domain=fmhy.vercel.app&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 11 },
+    { id: 'l-fmhygame', groupId: 'g-drama', title: 'FMHY Gaming Wiki', url: 'https://fmhy.vercel.app/gaming', note: 'Emulation & gaming tools', faviconUrl: 'https://www.google.com/s2/favicons?domain=fmhy.vercel.app&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 12 },
+    { id: 'l-opdir', groupId: 'g-drama', title: 'Open Directory Finder', url: 'https://ewasion.github.io/opendirectory-finder/#', note: 'Direct download search', faviconUrl: 'https://www.google.com/s2/favicons?domain=ewasion.github.io&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 13 },
+    { id: 'l-deepweb', groupId: 'g-drama', title: 'Deep Web Nest', url: 'https://deepwebnest.com/', note: 'Directory index', faviconUrl: 'https://www.google.com/s2/favicons?domain=deepwebnest.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 14 },
+
+    // 💻 Dev & Tech
+    { id: 'l-gfg', groupId: 'g-dev', title: 'GeeksforGeeks', url: 'https://www.geeksforgeeks.org/', note: 'Computer science tutorials & DSA', faviconUrl: 'https://www.google.com/s2/favicons?domain=geeksforgeeks.org&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-googleskills', groupId: 'g-dev', title: 'Google Skills', url: 'https://www.skills.google/', note: 'Google Developer learning pathways', faviconUrl: 'https://www.google.com/s2/favicons?domain=skills.google&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-uiverse', groupId: 'g-dev', title: 'Uiverse.io', url: 'https://uiverse.io/', note: 'Open-source UI elements & animations', faviconUrl: 'https://www.google.com/s2/favicons?domain=uiverse.io&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 },
+    { id: 'l-render', groupId: 'g-dev', title: 'Render Dashboard', url: 'https://dashboard.render.com/web/srv-d6mh47nafjfc7393qh9g', note: 'Web service cloud deployments', faviconUrl: 'https://www.google.com/s2/favicons?domain=dashboard.render.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 4 },
+    { id: 'l-enggroom', groupId: 'g-dev', title: 'EnggRoom Projects', url: 'https://www.enggroom.com/', note: 'Source code & project downloads', faviconUrl: 'https://www.google.com/s2/favicons?domain=enggroom.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 5 },
+    { id: 'l-fullstack', groupId: 'g-dev', title: 'Become A Full Stack Web Developer', url: 'https://github.com/bmorelli25/Become-A-Full-Stack-Web-Developer', note: 'Free learning resources on GitHub', faviconUrl: 'https://www.google.com/s2/favicons?domain=github.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 6 },
+
+    // 🎓 College & Learning
+    { id: 'l-jntuh', groupId: 'g-college', title: 'JNTUH Results', url: 'https://jntuhresults.vercel.app/', note: 'Academic exam result portal', faviconUrl: 'https://www.google.com/s2/favicons?domain=jntuhresults.vercel.app&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-jiopc', groupId: 'g-college', title: 'Jio AI Classroom', url: 'https://jiopc.embibe.com/courses/6a81b69a48de3edbe7dec3de', note: 'Embibe interactive courses', faviconUrl: 'https://www.google.com/s2/favicons?domain=jiopc.embibe.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-claude101', groupId: 'g-college', title: 'Claude 101 Certificate', url: 'https://anthropic.skilljar.com/claude-101/385349', note: 'Anthropic prompt engineering cert', faviconUrl: 'https://www.google.com/s2/favicons?domain=anthropic.skilljar.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 },
+
+    // 🎨 Design & 3D
+    { id: 'l-dribbble', groupId: 'g-design', title: 'Dribbble', url: 'https://dribbble.com/', note: 'Design inspiration & portfolios', faviconUrl: 'https://www.google.com/s2/favicons?domain=dribbble.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-spline', groupId: 'g-design', title: 'Spline 3D Design', url: 'https://app.spline.design/home', note: '3D interactive web experiences', faviconUrl: 'https://www.google.com/s2/favicons?domain=app.spline.design&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+
+    // 🎵 Music & Social
+    { id: 'l-instagram', groupId: 'g-media', title: 'Instagram', url: 'https://www.instagram.com/', note: 'Social feed & messaging', faviconUrl: 'https://www.google.com/s2/favicons?domain=instagram.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 1 },
+    { id: 'l-chennai', groupId: 'g-media', title: 'Kashmir Main Tu Kanyakumari', url: 'https://m.youtube.com/watch?v=WxtJqyIyThU&list=RDByAbV-MKDgs&index=28', note: 'Chennai Express (YouTube)', faviconUrl: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 2 },
+    { id: 'l-shehim', groupId: 'g-media', title: 'She & Him — I Thought I Saw Your Face Today', url: 'https://m.youtube.com/watch?v=pyGU-UudvrM&list=RDpyGU-UudvrM&start_radio=1', note: 'Official lyric video (YouTube)', faviconUrl: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64', createdAt: Date.now(), lastOpenedAt: null, order: 3 }
+  ]
+};
+
 // State
-let state = {groups:[],links:[]};
+let state = { groups: [], links: [] };
 let activeGroupId=null,editingLinkId=null,editingGroupId=null;
 let ctxGroupId=null,ctxLinkId=null;
 let selectedColor=COLORS[0].hex,selectedEmoji=EMOJIS[0],selectedGroupForLink=null;
@@ -25,7 +104,21 @@ const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRigh
 
 // Persistence
 function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
-function load(){try{const r=localStorage.getItem(STORAGE_KEY);if(r)state=JSON.parse(r);}catch{}}
+function load(){
+  try{
+    const r=localStorage.getItem(STORAGE_KEY);
+    if(r){
+      const parsed=JSON.parse(r);
+      if(parsed && parsed.groups && (parsed.groups.length > 0 || parsed.links.length > 0)){
+        state=parsed;
+        return;
+      }
+    }
+  }catch{}
+  // Default to pre-populated bookmarks
+  state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+  save();
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 // Time-aware background
@@ -711,6 +804,16 @@ document.getElementById('groupModalCancel').addEventListener('click',()=>closeMo
 document.getElementById('moveModalCancel').addEventListener('click',()=>closeModal('moveModal'));
 document.getElementById('exportBtn').addEventListener('click',exportData);
 document.getElementById('importBtn').addEventListener('click',importData);
+document.getElementById('resetBookmarksBtn').addEventListener('click',()=>{
+  if(confirm('Load all 45+ organized default bookmarks? This will replace or refresh your current list.')){
+    state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    save();
+    closeModal('settingsModal');
+    paperPlane('in');
+    render(document.getElementById('searchInput').value);
+    toast('All organized bookmarks loaded 🪺');
+  }
+});
 document.getElementById('aboutClose').addEventListener('click',()=>closeModal('aboutModal'));
 document.getElementById('creditsClose').addEventListener('click',()=>closeModal('creditsModal'));
 document.getElementById('devClose').addEventListener('click',()=>closeModal('devModal'));
