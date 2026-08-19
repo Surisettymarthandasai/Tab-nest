@@ -1,7 +1,15 @@
-// TabNest Service Worker — v3
-// Network-First for HTML/navigation (always fresh on mobile), Cache-First for assets
-const CACHE_NAME = 'tabnest-v3';
-const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+// TabNest Service Worker — v4
+// Network-First for HTML/navigation, Stale-While-Revalidate for CSS/JS/Assets
+const CACHE_NAME = 'tabnest-v4';
+const SHELL = [
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
+];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -52,7 +60,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Fonts and Static Assets — Stale-While-Revalidate
+  // CSS, JS, Fonts and Static Assets — Stale-While-Revalidate
   e.respondWith(
     caches.match(e.request).then(cached => {
       const fetchPromise = fetch(e.request).then(res => {
