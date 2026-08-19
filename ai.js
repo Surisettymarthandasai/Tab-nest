@@ -1,11 +1,11 @@
 // ══════════════════════════════════════════════════════════
-// Robin 🐦 (NestAI) — Autonomous Assistant & Action Engine
+// Robin 🐦 (NestAI) — High-Accuracy Intelligent Assistant
 // ══════════════════════════════════════════════════════════
 
 const AI_STORAGE_KEY = 'tabnest_ai_config_v1';
 let aiConfig = {
   apiKey: '',
-  provider: 'gemini', // 'gemini' | 'openai' | 'groq'
+  provider: 'gemini', // 'gemini' | 'openai'
   model: 'gemini-1.5-flash',
   autoOrganizeOnPaste: true
 };
@@ -49,7 +49,14 @@ function undoLastAction() {
   }
 }
 
-// ── Built-in Natural Language & Heuristic Engine ──────────
+// Stop words for clean query tokenization
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'is', 'are', 'was', 'were', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'my', 'me', 'i', 'you', 'your', 'we', 'our', 'what', 'where', 'which', 'who', 'how', 'when',
+  'show', 'find', 'search', 'get', 'give', 'list', 'look', 'tell', 'about', 'saved', 'have',
+  'link', 'links', 'website', 'websites', 'site', 'sites', 'tab', 'tabs', 'nest', 'nests',
+  'all', 'any', 'some', 'please', 'can', 'could', 'would', 'do', 'did', 'does'
+]);
 
 const DOMAIN_CATEGORY_MAP = {
   'github.com': { name: 'Dev & Tech', emoji: '💻', color: '#14B8A6' },
@@ -69,6 +76,9 @@ const DOMAIN_CATEGORY_MAP = {
   'napkin.ai': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
   'creao.ai': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
   'huggingface.co': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
+  'aiforwork.co': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
+  'aiprep.in': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
+  'stayingahead.com': { name: 'AI & Tools', emoji: '🤖', color: '#8B5CF6' },
 
   'anikoto.cz': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
   'anikoto.site': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
@@ -80,13 +90,18 @@ const DOMAIN_CATEGORY_MAP = {
   'toonverse.net': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
   'everythingmoe.com': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
   'comix.ws': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
+  'animesalt.link': { name: 'Anime & Manga', emoji: '🎬', color: '#F43F5E' },
 
   'kisskh.nl': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
   'kisskh.is': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
   'kisskh.ovh': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
   'turkish123.com': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
   'dramacool9.com.ro': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
+  'net11.cc': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
+  'rivestream.app': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
   'netflix.com': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
+  'fmhy.vercel.app': { name: 'Drama & Streams', emoji: '🍿', color: '#F59E0B' },
+
   'youtube.com': { name: 'Music & Social', emoji: '🎵', color: '#F97316' },
   'youtu.be': { name: 'Music & Social', emoji: '🎵', color: '#F97316' },
   'spotify.com': { name: 'Music & Social', emoji: '🎵', color: '#F97316' },
@@ -97,23 +112,106 @@ const DOMAIN_CATEGORY_MAP = {
   'dribbble.com': { name: 'Design & 3D', emoji: '🎨', color: '#EC4899' },
   'behance.net': { name: 'Design & 3D', emoji: '🎨', color: '#EC4899' },
   'figma.com': { name: 'Design & 3D', emoji: '🎨', color: '#EC4899' },
-  'spline.design': { name: 'Design & 3D', emoji: '🎨', color: '#EC4899' }
+  'spline.design': { name: 'Design & 3D', emoji: '🎨', color: '#EC4899' },
+
+  'jntuhresults.vercel.app': { name: 'College & Learning', emoji: '🎓', color: '#0EA5E9' },
+  'embibe.com': { name: 'College & Learning', emoji: '🎓', color: '#0EA5E9' },
+  'skilljar.com': { name: 'College & Learning', emoji: '🎓', color: '#0EA5E9' }
 };
 
-// ── Robin Assistant Engine ────────────────────────────────
+// ── Robin Autonomous Engine ───────────────────────────────
 const Robin = {
-  // 1. Clean duplicates
+  // 1. High-Precision Token & Fuzzy Search
+  smartSearch(query) {
+    if (!query || !query.trim()) return { text: "What link or nest are you looking for?", links: [] };
+
+    const raw = query.toLowerCase().trim();
+    const tokens = raw
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(t => t.length > 1 && !STOP_WORDS.has(t));
+
+    // A. Check if the query specifically refers to a nest
+    const matchedGroup = state.groups.find(g => {
+      const gName = g.name.toLowerCase();
+      return raw.includes(gName) || tokens.some(t => gName.includes(t));
+    });
+
+    // If query matches a nest directly (e.g. "anime", "drama", "ai tools", "dev links")
+    if (matchedGroup && (tokens.length <= 2 || raw.includes('nest') || raw.includes('group') || raw.includes('in '))) {
+      const groupLinks = state.links.filter(l => l.groupId === matchedGroup.id);
+      return {
+        text: `🪺 **${matchedGroup.emoji || '📁'} ${matchedGroup.name}** contains **${groupLinks.length} link${groupLinks.length !== 1 ? 's' : ''}**:`,
+        links: groupLinks.slice(0, 8)
+      };
+    }
+
+    // B. Token-based Relevance Scoring across all links
+    const searchTokens = tokens.length > 0 ? tokens : [raw];
+    const scoredLinks = [];
+
+    state.links.forEach(l => {
+      let score = 0;
+      const title = (l.title || '').toLowerCase();
+      const note = (l.note || '').toLowerCase();
+      const url = (l.url || '').toLowerCase();
+      const group = state.groups.find(g => g.id === l.groupId);
+      const groupName = (group?.name || '').toLowerCase();
+
+      let host = '';
+      try { host = new URL(l.url).hostname.toLowerCase(); } catch {}
+
+      // Exact full match bonuses
+      if (title === raw) score += 100;
+      else if (title.includes(raw)) score += 50;
+
+      if (url.includes(raw) || host.includes(raw)) score += 40;
+      if (note.includes(raw)) score += 30;
+      if (groupName.includes(raw)) score += 25;
+
+      // Token matches
+      searchTokens.forEach(token => {
+        if (title.includes(token)) score += 20;
+        if (host.includes(token)) score += 15;
+        if (url.includes(token)) score += 10;
+        if (note.includes(token)) score += 8;
+        if (groupName.includes(token)) score += 12;
+      });
+
+      if (score > 0) {
+        scoredLinks.push({ link: l, score, groupName: group?.name || 'Unsorted' });
+      }
+    });
+
+    scoredLinks.sort((a, b) => b.score - a.score);
+
+    if (!scoredLinks.length) {
+      return {
+        text: `🔍 I searched through all your links but couldn't find anything matching **"${escHtml(query)}"**.\n\n*Try searching by domain (e.g. \`github\`, \`kisskh\`), topic, or nest name.*`,
+        links: []
+      };
+    }
+
+    const topResults = scoredLinks.slice(0, 5).map(s => s.link);
+    return {
+      text: `🎯 Found **${scoredLinks.length} matching link${scoredLinks.length > 1 ? 's' : ''}** for **"${escHtml(query)}"**:`,
+      links: topResults
+    };
+  },
+
+  // 2. Clean Duplicate Links
   cleanDuplicates() {
     pushUndo('Remove duplicate links', state);
     const seen = new Set();
     const uniqueLinks = [];
     let dupCount = 0;
+    const dupNames = [];
 
     state.links.forEach(l => {
-      // Normalize URL (strip trailing slash & protocol casing)
       const norm = (l.url || '').trim().replace(/\/+$/, '').toLowerCase();
       if (seen.has(norm)) {
         dupCount++;
+        dupNames.push(l.title || l.url);
       } else {
         seen.add(norm);
         uniqueLinks.push(l);
@@ -122,8 +220,7 @@ const Robin = {
 
     if (dupCount === 0) {
       return {
-        text: '✨ **No duplicate links found!** Your nests are already squeaky clean.',
-        action: null
+        text: '✨ **No duplicate links found!** All your links are unique across all nests.'
       };
     }
 
@@ -131,19 +228,18 @@ const Robin = {
     save();
     render(document.getElementById('searchInput')?.value || '');
     return {
-      text: `🧹 **Cleaned up ${dupCount} duplicate link${dupCount > 1 ? 's' : ''}!** Your collection is now deduplicated.`,
+      text: `🧹 **Cleaned up ${dupCount} duplicate link${dupCount > 1 ? 's' : ''}!**\n\n*Removed: ${dupNames.slice(0, 3).map(n => `\`${escHtml(n)}\``).join(', ')}${dupNames.length > 3 ? ` + ${dupNames.length - 3} more` : ''}*`,
       canUndo: true
     };
   },
 
-  // 2. Auto-organize unsorted links
+  // 3. Auto-Organize Unassigned Links
   autoOrganizeUnsorted() {
     pushUndo('Auto-organize links', state);
     const unassigned = state.links.filter(l => !l.groupId || !state.groups.some(g => g.id === l.groupId));
     if (!unassigned.length) {
       return {
-        text: '🪺 **All links are already safely nested!** You don\'t have any unsorted links.',
-        action: null
+        text: '🪺 **All links are already organized into nests!** You have 0 unassigned links.'
       };
     }
 
@@ -152,12 +248,11 @@ const Robin = {
 
     unassigned.forEach(l => {
       let host = '';
-      try { host = new URL(l.url).hostname.replace(/^www\./, ''); } catch {}
-      
-      // Match against domain mapping or existing nest names
+      try { host = new URL(l.url).hostname.replace(/^www\./, '').toLowerCase(); } catch {}
+
       let targetGroup = null;
-      
-      // Check known domain map
+
+      // 1. Check known domain map
       if (DOMAIN_CATEGORY_MAP[host]) {
         const cat = DOMAIN_CATEGORY_MAP[host];
         targetGroup = state.groups.find(g => g.name.toLowerCase() === cat.name.toLowerCase());
@@ -167,17 +262,29 @@ const Robin = {
         }
       }
 
-      // If not in domain map, fuzzy match against existing nest names
+      // 2. Keyword heuristic on title & url
       if (!targetGroup) {
-        const titleLower = (l.title || host).toLowerCase();
-        targetGroup = state.groups.find(g => titleLower.includes(g.name.toLowerCase()) || (g.name.toLowerCase().includes('imported')));
+        const text = `${l.title || ''} ${l.note || ''} ${host}`.toLowerCase();
+        if (/anime|manga|webtoon|manhwa|toon|comic/i.test(text)) {
+          targetGroup = state.groups.find(g => /anime|manga/i.test(g.name));
+        } else if (/drama|movie|stream|watch|episode|series|cinema/i.test(text)) {
+          targetGroup = state.groups.find(g => /drama|stream/i.test(g.name));
+        } else if (/ai|gpt|llm|prompt|claude|gemini|bot|openai|agent/i.test(text)) {
+          targetGroup = state.groups.find(g => /ai|tool/i.test(g.name));
+        } else if (/dev|code|github|stack|api|program|tech|css|html|js/i.test(text)) {
+          targetGroup = state.groups.find(g => /dev|tech/i.test(g.name));
+        } else if (/music|song|video|youtube|instagram|spotify|social/i.test(text)) {
+          targetGroup = state.groups.find(g => /music|social/i.test(g.name));
+        } else if (/college|university|result|exam|course|learn|study/i.test(text)) {
+          targetGroup = state.groups.find(g => /college|learn/i.test(g.name));
+        }
       }
 
-      // Default fallback: create or use "Unsorted Archive"
+      // 3. Fallback to existing or new "General Archive"
       if (!targetGroup) {
-        targetGroup = state.groups.find(g => g.name.toLowerCase() === 'unsorted archive');
+        targetGroup = state.groups.find(g => g.name.toLowerCase() === 'general archive') || state.groups[0];
         if (!targetGroup) {
-          targetGroup = { id: uid(), name: 'Unsorted Archive', color: '#6366F1', emoji: '📦', order: state.groups.length + 1 };
+          targetGroup = { id: uid(), name: 'General Archive', color: '#6366F1', emoji: '📦', order: state.groups.length + 1 };
           state.groups.push(targetGroup);
         }
       }
@@ -190,111 +297,116 @@ const Robin = {
     save();
     render(document.getElementById('searchInput')?.value || '');
     return {
-      text: `🪄 **Organized ${organizedCount} link${organizedCount > 1 ? 's' : ''} into nests:**\n\n${movedDetails.slice(0, 8).join('\n')}${movedDetails.length > 8 ? `\n*...and ${movedDetails.length - 8} more.*` : ''}`,
+      text: `🪄 **Auto-organized ${organizedCount} link${organizedCount > 1 ? 's' : ''} into their respective nests:**\n\n${movedDetails.slice(0, 8).join('\n')}${movedDetails.length > 8 ? `\n*...and ${movedDetails.length - 8} more.*` : ''}`,
       canUndo: true
     };
   },
 
-  // 3. Sort links in nests
-  sortNests(mode = 'alphabetical') {
-    pushUndo('Sort links', state);
+  // 4. Sort Nests & Links Alphabetically
+  sortAlphabetical() {
+    pushUndo('Sort links alphabetically', state);
     state.groups.forEach(g => {
-      const groupLinks = state.links.filter(l => l.groupId === g.id);
-      groupLinks.sort((a, b) => {
-        const ta = (a.title || a.url).toLowerCase();
-        const tb = (b.title || b.url).toLowerCase();
-        return ta.localeCompare(tb);
-      });
-      groupLinks.forEach((l, idx) => { l.order = idx + 1; });
+      const gLinks = state.links.filter(l => l.groupId === g.id);
+      gLinks.sort((a, b) => (a.title || a.url).localeCompare(b.title || b.url, undefined, { sensitivity: 'base' }));
+      gLinks.forEach((l, i) => { l.order = i + 1; });
     });
 
-    // Also sort groups alphabetically
-    state.groups.sort((a, b) => a.name.localeCompare(b.name));
-    state.groups.forEach((g, idx) => { g.order = idx + 1; });
+    state.groups.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    state.groups.forEach((g, i) => { g.order = i + 1; });
 
     save();
     render(document.getElementById('searchInput')?.value || '');
     return {
-      text: '🔤 **All nests and links have been sorted alphabetically (A-Z)!**',
+      text: '🔤 **All nests and their links have been sorted alphabetically (A-Z)!**',
       canUndo: true
     };
   },
 
-  // 4. Stale link health check
-  checkStaleLinks(days = 14) {
-    const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
-    const stale = state.links.filter(l => !l.lastOpenedAt || l.lastOpenedAt < cutoff);
-
-    if (!stale.length) {
-      return {
-        text: '🔥 **Great habit!** You have interacted with all your links recently.',
-        action: null
-      };
-    }
-
-    const sample = stale.slice(0, 5).map(l => {
-      const daysAgo = l.lastOpenedAt ? Math.floor((Date.now() - l.lastOpenedAt) / (1000 * 60 * 60 * 24)) : 'Never opened';
-      return `• [${escHtml(l.title || l.url)}](${l.url}) — *(${daysAgo === 'Never opened' ? 'Never opened' : `${daysAgo}d ago`})*`;
-    }).join('\n');
-
-    return {
-      text: `🪶 **Found ${stale.length} quiet link${stale.length > 1 ? 's' : ''} (unopened in ${days}+ days):**\n\n${sample}${stale.length > 5 ? `\n\n*+ ${stale.length - 5} more quiet links.*` : ''}\n\n*Tip: Say "release unopened links" or review them to keep your nest clutter-free.*`,
-      links: stale.slice(0, 4)
-    };
-  },
-
-  // 5. Get statistics
+  // 5. Comprehensive Stats & Digest
   getStats() {
     const totalNests = state.groups.length;
     const totalLinks = state.links.length;
     const unassigned = state.links.filter(l => !l.groupId).length;
     const opened = state.links.filter(l => l.lastOpenedAt).length;
 
-    let mostVisitedGroup = null;
-    let maxVisits = -1;
-
-    state.groups.forEach(g => {
-      const gLinks = state.links.filter(l => l.groupId === g.id && l.lastOpenedAt);
-      if (gLinks.length > maxVisits) {
-        maxVisits = gLinks.length;
-        mostVisitedGroup = g;
-      }
-    });
+    const nestBreakdown = state.groups.map(g => {
+      const count = state.links.filter(l => l.groupId === g.id).length;
+      return `• ${g.emoji || '📁'} **${g.name}**: ${count} link${count !== 1 ? 's' : ''}`;
+    }).join('\n');
 
     return {
-      text: `📊 **TabNest Health & Statistics:**\n\n` +
+      text: `📊 **TabNest Overview & Stats:**\n\n` +
             `• 🪺 **Total Nests:** ${totalNests}\n` +
             `• 🔗 **Total Links:** ${totalLinks}\n` +
             `• 🌐 **Unsorted Links:** ${unassigned}\n` +
-            `• ⚡ **Active Links Opened:** ${opened} / ${totalLinks} (${totalLinks ? Math.round((opened / totalLinks) * 100) : 0}%)\n` +
-            (mostVisitedGroup ? `• 🏆 **Most Active Nest:** ${mostVisitedGroup.emoji || '📁'} ${mostVisitedGroup.name}` : '')
+            `• ⚡ **Opened at least once:** ${opened} / ${totalLinks} (${totalLinks ? Math.round((opened / totalLinks) * 100) : 0}%)\n\n` +
+            `**Nest Breakdown:**\n${nestBreakdown}`
     };
   },
 
-  // 6. Search links & answer queries
-  searchLinks(query) {
-    const q = query.toLowerCase().trim();
-    const results = state.links.filter(l =>
-      (l.title || '').toLowerCase().includes(q) ||
-      (l.url || '').toLowerCase().includes(q) ||
-      (l.note || '').toLowerCase().includes(q) ||
-      state.groups.some(g => g.id === l.groupId && g.name.toLowerCase().includes(q))
-    );
+  // 6. Stale / Unopened Links Health Check
+  checkStaleLinks(days = 14) {
+    const cutoff = Date.now() - (days * 24 * 60 * 60 * 1000);
+    const stale = state.links.filter(l => !l.lastOpenedAt || l.lastOpenedAt < cutoff);
 
-    if (!results.length) {
+    if (!stale.length) {
       return {
-        text: `🔍 I couldn't find any links matching **"${escHtml(query)}"** in your nests. Would you like me to create a link or nest for this?`,
-        links: []
+        text: '🔥 **Zero stale tabs!** All your links have been opened recently.'
       };
     }
 
+    const sample = stale.slice(0, 5).map(l => {
+      const timeStr = l.lastOpenedAt ? `${Math.floor((Date.now() - l.lastOpenedAt) / (1000 * 60 * 60 * 24))}d ago` : 'Never opened';
+      return `• **${escHtml(l.title || l.url)}** *(${timeStr})*`;
+    }).join('\n');
+
     return {
-      text: `🎯 Found **${results.length} link${results.length > 1 ? 's' : ''}** for **"${escHtml(query)}"**:`,
-      links: results.slice(0, 5)
+      text: `🪶 **Found ${stale.length} quiet link${stale.length > 1 ? 's' : ''} (unopened in ${days}+ days):**\n\n${sample}${stale.length > 5 ? `\n*+ ${stale.length - 5} more links*` : ''}\n\n*Review them below or keep your nest clutter-free.*`,
+      links: stale.slice(0, 5)
     };
   },
 
-  // 7. Create nest command
+  // 7. Delete a specific link
+  deleteSpecificLink(linkQuery) {
+    const match = this.smartSearch(linkQuery);
+    if (!match.links || !match.links.length) {
+      return { text: `⚠️ Couldn't find any link matching **"${escHtml(linkQuery)}"** to delete.` };
+    }
+    const target = match.links[0];
+    pushUndo(`Delete link "${target.title}"`, state);
+    state.links = state.links.filter(l => l.id !== target.id);
+    save();
+    render(document.getElementById('searchInput')?.value || '');
+    return {
+      text: `🗑️ **Deleted link:** \`${escHtml(target.title || target.url)}\` from your nest.`,
+      canUndo: true
+    };
+  },
+
+  // 8. Move a link to another nest
+  moveLink(linkQuery, targetNestName) {
+    const match = this.smartSearch(linkQuery);
+    if (!match.links || !match.links.length) {
+      return { text: `⚠️ Couldn't find any link matching **"${escHtml(linkQuery)}"** to move.` };
+    }
+    const targetLink = match.links[0];
+    const targetGroup = state.groups.find(g => g.name.toLowerCase().includes(targetNestName.toLowerCase().trim()));
+
+    if (!targetGroup) {
+      return { text: `⚠️ Couldn't find a nest named **"${escHtml(targetNestName)}"**. Please check the name or create it first.` };
+    }
+
+    pushUndo(`Move "${targetLink.title}" to ${targetGroup.name}`, state);
+    targetLink.groupId = targetGroup.id;
+    save();
+    render(document.getElementById('searchInput')?.value || '');
+    return {
+      text: `📦 **Moved** \`${escHtml(targetLink.title || targetLink.url)}\` → **${targetGroup.emoji || '📁'} ${targetGroup.name}**!`,
+      canUndo: true
+    };
+  },
+
+  // 9. Create a new Nest
   createNest(name, emoji = '📁', color = '#F59E0B') {
     pushUndo(`Create nest "${name}"`, state);
     const existing = state.groups.find(g => g.name.toLowerCase() === name.toLowerCase());
@@ -307,88 +419,93 @@ const Robin = {
     confetti(color);
     render(document.getElementById('searchInput')?.value || '');
     return {
-      text: `🎉 **Created new nest:** ${emoji} **${escHtml(name)}**! You can now move links into it.`,
+      text: `🎉 **Created new nest:** ${emoji} **${escHtml(name)}**!`,
       canUndo: true
     };
   },
 
-  // 8. Process natural language query
+  // 10. Main Natural Language Intent Processor
   async processQuery(userInput) {
     const input = userInput.trim();
-    if (!input) return { text: "How can I help with your nests today? Try asking me to *clean duplicates*, *organize unsorted*, or *find links*." };
+    if (!input) return { text: "How can I help you manage your links today? Ask me to *clean duplicates*, *organize unsorted*, *sort A-Z*, or *find links*." };
 
     const lower = input.toLowerCase();
 
-    // Undo command
-    if (lower === 'undo' || lower === 'revert' || lower.includes('undo that') || lower.includes('undo last')) {
+    // ── A. Undo Commands ──
+    if (/(undo|revert)/i.test(lower)) {
       if (undoLastAction()) {
-        return { text: "↺ **Action undone!** Restored previous state." };
+        return { text: "↺ **Action undone!** Restored previous nest state." };
       } else {
-        return { text: "There are no previous actions to undo." };
+        return { text: "There are no previous actions in history to undo." };
       }
     }
 
-    // Duplicate cleanup
-    if (lower.includes('duplicate') || lower.includes('clean up') || lower.includes('dedup') || lower.includes('remove duplicates')) {
+    // ── B. Duplicate Cleanup ──
+    if (/(duplicate|dedup|clean up|remove duplicate|delete duplicate)/i.test(lower)) {
       return this.cleanDuplicates();
     }
 
-    // Auto-organize
-    if (lower.includes('organize') || lower.includes('categorize') || lower.includes('auto organize') || lower.includes('sort unsorted') || lower.includes('fix unsorted')) {
+    // ── C. Auto-Organize Links ──
+    if (/(auto.?organize|organize|categorize|sort unsorted|fix unsorted)/i.test(lower)) {
       return this.autoOrganizeUnsorted();
     }
 
-    // Sort nests
-    if (lower.includes('sort a-z') || lower.includes('sort a to z') || lower.includes('sort alphabet') || lower.includes('alphabetical')) {
-      return this.sortNests('alphabetical');
+    // ── D. Alphabetical Sort ──
+    if (/(sort.*(a.?z|alphabet|name)|alphabetical|sort nests)/i.test(lower)) {
+      return this.sortAlphabetical();
     }
 
-    // Stats
-    if (lower.includes('stat') || lower.includes('statistic') || lower.includes('analytics') || lower.includes('summary') || lower.includes('overview') || lower.includes('how many') || lower.includes('metric') || lower.includes('health') || lower.includes('total')) {
+    // ── E. Stats & Digest ──
+    if (/(stat|statistic|analytic|summary|overview|breakdown|how many links|health|metrics)/i.test(lower)) {
       return this.getStats();
     }
 
-    // Stale links / detox
-    if (lower.includes('stale') || lower.includes('unopened') || lower.includes('quiet') || lower.includes('detox') || lower.includes('old link') || lower.includes('inactive') || lower.includes('tab')) {
+    // ── F. Stale Links / Health ──
+    if (/(stale|unopened|quiet|detox|old link|inactive link|unvisited)/i.test(lower)) {
       return this.checkStaleLinks(14);
     }
 
-    // Export trigger
-    if (lower.includes('export') || lower.includes('backup') || lower.includes('download data')) {
+    // ── G. Export Data ──
+    if (/(export|backup|download data|save backup)/i.test(lower)) {
       exportData();
-      return { text: "✈️ **Export started!** Your TabNest backup is downloading now." };
+      return { text: "✈️ **Export started!** Your TabNest JSON backup is downloading." };
     }
 
-    // Themes
-    if (lower.includes('theme') || lower.includes('dark mode') || lower.includes('matrix') || lower.includes('cyber')) {
+    // ── H. Theme Change ──
+    if (/(change theme|cycle theme|switch theme|dark mode|matrix|cyberpunk|crt)/i.test(lower)) {
       cycleTheme();
-      return { text: "🎨 **Theme cycled!** Tap again to cycle to the next style." };
+      return { text: "🎨 **Theme cycled!**" };
     }
 
-    // Create nest command: "create nest <name>" or "new nest <name>"
+    // ── I. Delete Link Command: "delete link <X>" or "remove link <X>" ──
+    const deleteMatch = input.match(/(?:delete|remove)\s+(?:the\s+)?(?:link\s+)?["']?([^"']+)["']?/i);
+    if (deleteMatch && deleteMatch[1] && !deleteMatch[1].includes('duplicate') && !deleteMatch[1].includes('nest')) {
+      return this.deleteSpecificLink(deleteMatch[1].trim());
+    }
+
+    // ── J. Move Link Command: "move <X> to <Y>" ──
+    const moveMatch = input.match(/move\s+["']?(.+?)["']?\s+to\s+["']?(.+?)["']?$/i);
+    if (moveMatch && moveMatch[1] && moveMatch[2]) {
+      return this.moveLink(moveMatch[1].trim(), moveMatch[2].trim());
+    }
+
+    // ── K. Create Nest Command: "create nest <X>" ──
     const createMatch = input.match(/(?:create|new|add)\s+(?:a\s+)?nest\s+(?:named|called\s+)?["']?([^"']+)["']?/i);
     if (createMatch && createMatch[1]) {
-      const nestName = createMatch[1].trim();
-      return this.createNest(nestName, '📁', '#F59E0B');
+      return this.createNest(createMatch[1].trim(), '📁', '#F59E0B');
     }
 
-    // Direct search for links
-    if (lower.startsWith('find ') || lower.startsWith('search ') || lower.startsWith('where is ') || lower.startsWith('show me ')) {
-      const cleanQ = input.replace(/^(find|search|where is|show me|look for)\s+/i, '').trim();
-      return this.searchLinks(cleanQ);
-    }
-
-    // If URL pasted directly:
+    // ── L. URL Pasted Directly ──
     if (/^https?:\/\//i.test(input)) {
       let host = '';
-      try { host = new URL(input).hostname.replace(/^www\./, ''); } catch {}
+      try { host = new URL(input).hostname.replace(/^www\./, '').toLowerCase(); } catch {}
       const mapped = DOMAIN_CATEGORY_MAP[host];
       let assignedGroup = null;
       if (mapped) {
         assignedGroup = state.groups.find(g => g.name.toLowerCase() === mapped.name.toLowerCase());
       }
       return {
-        text: `🔗 **Detected URL:** \`${input}\`\n\nWould you like me to save this to **${assignedGroup ? `${assignedGroup.emoji || '📁'} ${assignedGroup.name}` : 'Unsorted'}**?`,
+        text: `🔗 **Detected URL:** \`${input}\`\n\nWould you like to save this to **${assignedGroup ? `${assignedGroup.emoji || '📁'} ${assignedGroup.name}` : 'Unsorted'}**?`,
         suggestedLink: {
           url: input,
           title: titleFromUrl(input),
@@ -397,56 +514,47 @@ const Robin = {
       };
     }
 
-    // If Gemini/LLM API Key is configured, use LLM for deep reasoning
+    // ── M. Optional Gemini LLM Fallback ──
     if (aiConfig.apiKey && aiConfig.provider === 'gemini') {
       try {
         return await this.callGeminiLLM(input);
       } catch (err) {
-        console.error('LLM error:', err);
+        console.warn('Gemini LLM error, falling back to smart search:', err);
       }
     }
 
-    // Default search fallback
-    const fallbackResults = this.searchLinks(input);
-    if (fallbackResults.links && fallbackResults.links.length > 0) {
-      return fallbackResults;
-    }
-
-    return {
-      text: `🤖 I'm **Robin**, your link companion! Here is what I can do:\n\n` +
-            `• 🧹 **"Clean duplicates"** — remove identical links\n` +
-            `• 🪄 **"Organize unsorted"** — categorize links into nests\n` +
-            `• 🔤 **"Sort A-Z"** — alphabetical sort for all nests\n` +
-            `• 📊 **"Show stats"** — nest insights & activity\n` +
-            `• 🔍 **"Find <topic>"** — search through all your bookmarks\n` +
-            `• 🪶 **"Check stale links"** — find unopened tabs to detox\n\n` +
-            `*You can also connect your free Gemini API key in Settings for conversational reasoning!*`
-    };
+    // ── N. High-Precision Smart Search (Default Fallback) ──
+    return this.smartSearch(input);
   },
 
-  // 9. Optional Gemini LLM Engine
+  // 11. LLM Engine with full Context
   async callGeminiLLM(userPrompt) {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${aiConfig.model || 'gemini-1.5-flash'}:generateContent?key=${aiConfig.apiKey}`;
+
     const context = {
-      groups: state.groups.map(g => ({ id: g.id, name: g.name, emoji: g.emoji })),
-      totalLinks: state.links.length,
-      sampleLinks: state.links.slice(0, 30).map(l => ({ title: l.title, url: l.url, group: state.groups.find(g => g.id === l.groupId)?.name || 'Unsorted' }))
+      nests: state.groups.map(g => ({ id: g.id, name: g.name, emoji: g.emoji })),
+      links: state.links.map(l => ({
+        id: l.id,
+        title: l.title,
+        url: l.url,
+        note: l.note,
+        nest: state.groups.find(g => g.id === l.groupId)?.name || 'Unsorted'
+      }))
     };
 
-    const systemInstruction = `You are Robin, an intelligent and concise link manager assistant for TabNest.
-Current user state:
-- Nests: ${JSON.stringify(context.groups)}
-- Sample links: ${JSON.stringify(context.sampleLinks)}
-- Total links: ${context.totalLinks}
+    const systemInstruction = `You are Robin, the intelligent AI assistant for TabNest.
+You have direct access to the user's link database:
+- Nests: ${JSON.stringify(context.nests)}
+- Links (${context.links.length} total): ${JSON.stringify(context.links)}
 
-Help the user organize, query, summarize, or manage their links. Give friendly, concise responses with markdown formatting.`;
+Answer questions accurately, find links, summarize bookmarks, and explain why links were saved. If recommending links, give the exact title and URL. Keep answers concise, clear, and nicely formatted in markdown.`;
 
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
-          { role: 'user', parts: [{ text: `${systemInstruction}\n\nUser request: ${userPrompt}` }] }
+          { role: 'user', parts: [{ text: `${systemInstruction}\n\nUser Request: ${userPrompt}` }] }
         ]
       })
     });
@@ -456,8 +564,18 @@ Help the user organize, query, summarize, or manage their links. Give friendly, 
     }
 
     const data = await res.json();
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I processed your request.";
-    return { text: replyText };
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that response.";
+
+    // Check if the reply mentions any specific links to render cards
+    const mentionedLinks = state.links.filter(l =>
+      replyText.toLowerCase().includes(l.title.toLowerCase()) ||
+      replyText.includes(l.url)
+    ).slice(0, 4);
+
+    return {
+      text: replyText,
+      links: mentionedLinks.length > 0 ? mentionedLinks : undefined
+    };
   }
 };
 
@@ -471,8 +589,7 @@ function openRobinChat(initialPrompt = '') {
 
   const chatContainer = document.getElementById('robinMessages');
   if (chatContainer && chatContainer.children.length === 0) {
-    // Initial welcome message
-    appendRobinMessage('bot', `👋 Hi! I'm **Robin**, your personal Nest Assistant. How can I help organize your links today?`);
+    appendRobinMessage('bot', `👋 Hi! I'm **Robin**, your link manager.\n\nAsk me to **clean duplicates**, **auto-organize**, **sort A-Z**, or search for any bookmark!`);
   }
 
   const input = document.getElementById('robinInput');
@@ -493,7 +610,6 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
   const msgDiv = document.createElement('div');
   msgDiv.className = `robin-msg robin-msg-${sender}`;
 
-  // Simple markdown to HTML format
   let html = markdownText
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -502,7 +618,7 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
 
   msgDiv.innerHTML = `<div class="robin-bubble">${html}</div>`;
 
-  // If there are link preview cards
+  // Render link cards with favicons & 1-tap open
   if (extras.links && extras.links.length) {
     const cardsDiv = document.createElement('div');
     cardsDiv.className = 'robin-link-cards';
@@ -533,7 +649,7 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
     msgDiv.appendChild(cardsDiv);
   }
 
-  // If there is an undo button
+  // Undo button
   if (extras.canUndo) {
     const undoBtn = document.createElement('button');
     undoBtn.className = 'robin-undo-btn';
@@ -545,7 +661,7 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
     msgDiv.appendChild(undoBtn);
   }
 
-  // If there is a suggested link action
+  // Suggested link quick save button
   if (extras.suggestedLink) {
     const saveBtn = document.createElement('button');
     saveBtn.className = 'robin-action-btn';
@@ -606,5 +722,5 @@ async function handleRobinSend() {
   }
 }
 
-// ── Initialize AI Config & Listeners ───────────────────────
+// ── Initialize AI Config ──────────────────────────────────
 loadAiConfig();
