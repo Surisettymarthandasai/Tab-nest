@@ -199,6 +199,15 @@ const Robin = {
     };
   },
 
+function normalizeUrl(url = '') {
+  try {
+    const u = new URL(url.trim());
+    return (u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/+$/, '') + u.search).toLowerCase();
+  } catch {
+    return url.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/+$/, '').toLowerCase();
+  }
+}
+
   // 2. Clean Duplicate Links
   cleanDuplicates() {
     pushUndo('Remove duplicate links', state);
@@ -208,7 +217,7 @@ const Robin = {
     const dupNames = [];
 
     state.links.forEach(l => {
-      const norm = (l.url || '').trim().replace(/\/+$/, '').toLowerCase();
+      const norm = normalizeUrl(l.url);
       if (seen.has(norm)) {
         dupCount++;
         dupNames.push(l.title || l.url);
@@ -454,7 +463,7 @@ const Robin = {
     const seen = new Set();
     const dups = [];
     state.links.forEach(l => {
-      const norm = (l.url || '').trim().replace(/\/+$/, '').toLowerCase();
+      const norm = normalizeUrl(l.url);
       if (seen.has(norm)) dups.push(l);
       else seen.add(norm);
     });
@@ -508,7 +517,36 @@ const Robin = {
       return this.runAudit();
     }
 
-    // ── B. Undo Commands ──
+    // ── B. Confirmation / Execution Commands ("yes", "do it", "apply", "execute") ──
+    if (/^(yes|do it|execute|apply|apply all|go ahead|sure|proceed|ok|okay|fix it|optimize)$/i.test(lower)) {
+      pushUndo('Apply All JARVIS Optimizations', state);
+      const audit = this.runAudit();
+      if (audit.auditSuggestions && audit.auditSuggestions.length) {
+        audit.auditSuggestions.forEach(s => {
+          if (s.type === 'move') {
+            const l = state.links.find(x => x.id === s.linkId);
+            if (l) l.groupId = s.targetGroupId;
+          } else if (s.type === 'dedup') {
+            this.cleanDuplicates();
+          } else if (s.type === 'organize') {
+            this.autoOrganizeUnsorted();
+          }
+        });
+        save();
+        render(document.getElementById('searchInput')?.value || '');
+        confetti('#8B5CF6');
+        return {
+          text: `🎩 **All optimizations executed flawlessly, sir.** Your nests are in pristine order.`,
+          canUndo: true
+        };
+      } else {
+        return {
+          text: `🎩 **Everything is already in pristine order, sir.** No further actions required.`
+        };
+      }
+    }
+
+    // ── C. Undo Commands ──
     if (/(undo|revert)/i.test(lower)) {
       if (undoLastAction()) {
         return { text: "↺ **Action undone, sir.** Restored previous nest state." };
@@ -517,7 +555,7 @@ const Robin = {
       }
     }
 
-    // ── C. Duplicate Cleanup ──
+    // ── D. Duplicate Cleanup ──
     if (/(duplicate|dedup|clean up|remove duplicate|delete duplicate)/i.test(lower)) {
       return this.cleanDuplicates();
     }

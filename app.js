@@ -354,6 +354,7 @@ function render(q=''){
 
 // ── DRAG AND DROP FOR NESTS ───────────────────────────────
 let draggedGid = null;
+let wasTouchDragged = false;
 
 function setupGroupDragAndDrop(){
   const cards = document.querySelectorAll('.group-card');
@@ -396,23 +397,30 @@ function setupGroupDragAndDrop(){
     // Touch Drag & Drop for Mobile
     let touchHoldTimer = null;
     let touchDragging = false;
+    let startX = 0, startY = 0;
 
     card.addEventListener('touchstart', e => {
       if (e.target.closest('.card-kebab') || e.target.closest('.tile')) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
       touchHoldTimer = setTimeout(() => {
         touchDragging = true;
         draggedGid = card.dataset.gid;
         card.classList.add('dragging');
         haptic([25]);
-      }, 350);
+      }, 300);
     }, { passive: true });
 
     card.addEventListener('touchmove', e => {
+      const touch = e.touches[0];
       if (!touchDragging) {
-        clearTimeout(touchHoldTimer);
+        if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > 10) {
+          clearTimeout(touchHoldTimer);
+        }
         return;
       }
-      const touch = e.touches[0];
+      if (e.cancelable) e.preventDefault();
+
       const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
       const overCard = targetEl?.closest('.group-card');
 
@@ -420,12 +428,15 @@ function setupGroupDragAndDrop(){
       if (overCard && overCard.dataset.gid !== draggedGid) {
         overCard.classList.add('drag-over');
       }
-    }, { passive: true });
+    }, { passive: false });
 
     card.addEventListener('touchend', e => {
       clearTimeout(touchHoldTimer);
       if (touchDragging) {
         touchDragging = false;
+        wasTouchDragged = true;
+        setTimeout(() => { wasTouchDragged = false; }, 350);
+
         card.classList.remove('dragging');
         const touch = e.changedTouches[0];
         const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
@@ -480,20 +491,27 @@ function renderGroupView(gid){
         </button>
       </div>
     </div>`).join('');
-  document.querySelectorAll('.link-item').forEach(item=>{
+  list.querySelectorAll('.link-item').forEach(item=>{
     item.addEventListener('click',e=>{if(e.target.closest('.link-action-btn'))return;ripple(item,e);openLink(item.dataset.lid,e);});
   });
-  document.querySelectorAll('.link-action-btn').forEach(btn=>{
+  list.querySelectorAll('.link-action-btn').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();ctxLinkId=btn.dataset.lid;openCtx('linkCtxMenu',btn);});
   });
 }
 
-function openGroupView(gid,e){activeGroupId=gid;renderGroupView(gid);requestAnimationFrame(()=>document.getElementById('groupView').classList.add('open'));}
+function openGroupView(gid,e){
+  if(wasTouchDragged) return;
+  activeGroupId=gid;
+  renderGroupView(gid);
+  requestAnimationFrame(()=>document.getElementById('groupView').classList.add('open'));
+}
 function closeGroupView(){document.getElementById('groupView').classList.remove('open');activeGroupId=null;}
 function openLink(lid,e){
   const l=state.links.find(x=>x.id===lid);if(!l)return;
-  l.lastOpenedAt=Date.now();save();render(document.getElementById('searchInput').value);
-  haptic([10]);window.open(l.url,'_blank','noopener');
+  l.lastOpenedAt=Date.now();
+  save();
+  haptic([10]);
+  window.open(l.url,'_blank','noopener');
 }
 
 // CTX
@@ -1043,30 +1061,9 @@ const gv=document.getElementById('groupView');
 gv.addEventListener('touchstart',e=>{swipeX=e.touches[0].clientX;},{passive:true});
 gv.addEventListener('touchend',e=>{if(e.changedTouches[0].clientX-swipeX>80)closeGroupView();},{passive:true});
 
-// SW & Auto-Update for mobile
+// SW for offline support
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').then(reg => {
-    reg.update();
-    reg.addEventListener('updatefound', () => {
-      const newWorker = reg.installing;
-      if (newWorker) {
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            toast('App updated! Refreshing...', 1500);
-            setTimeout(() => window.location.reload(), 1200);
-          }
-        });
-      }
-    });
-  }).catch(() => {});
-
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
-      refreshing = true;
-      window.location.reload();
-    }
-  });
+  navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 // INIT
