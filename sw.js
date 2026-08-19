@@ -1,11 +1,12 @@
-// TabNest Service Worker — v4
+// TabNest Service Worker — v5
 // Network-First for HTML/navigation, Stale-While-Revalidate for CSS/JS/Assets
-const CACHE_NAME = 'tabnest-v4';
+const CACHE_NAME = 'tabnest-v5';
 const SHELL = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './ai.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

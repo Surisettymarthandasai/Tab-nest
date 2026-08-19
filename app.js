@@ -779,6 +779,8 @@ fabBtn.addEventListener('touchstart',()=>{fabHoldTimer=setTimeout(openFabBloom,6
 fabBtn.addEventListener('touchend',()=>clearTimeout(fabHoldTimer));
 
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();openCtx('globalMenu',document.getElementById('menuBtn'));});
+document.getElementById('robinBtn').addEventListener('click',()=>openRobinChat());
+document.getElementById('gmRobin').addEventListener('click',()=>{closeAllCtx();openRobinChat();});
 document.getElementById('exportCsvBtn').addEventListener('click',exportCsv);
 document.getElementById('importBraveBtn').addEventListener('click',importBraveData);
 document.getElementById('importHtmlBtn').addEventListener('click',importHtmlData);
@@ -786,13 +788,40 @@ document.getElementById('importUrlsBtn').addEventListener('click',()=>{closeModa
 document.getElementById('bloomAddLink').addEventListener('click',()=>{closeFabBloom();openAddLinkModal();});
 document.getElementById('bloomAddGroup').addEventListener('click',()=>{closeFabBloom();openAddGroupModal();});
 
+// ROBIN AI LISTENERS
+document.getElementById('robinCloseBtn').addEventListener('click',()=>closeModal('robinModal'));
+document.getElementById('robinSendBtn').addEventListener('click',handleRobinSend);
+document.getElementById('robinInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleRobinSend();});
+document.querySelectorAll('.robin-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    const cmd = chip.dataset.cmd;
+    if(cmd){
+      const input = document.getElementById('robinInput');
+      input.value = cmd;
+      handleRobinSend();
+    }
+  });
+});
+
+// AI API KEY SETTINGS
+document.getElementById('saveAiKeyBtn').addEventListener('click',()=>{
+  const key = document.getElementById('geminiApiKeyInput').value.trim();
+  aiConfig.apiKey = key;
+  saveAiConfig();
+  toast(key ? 'Gemini API Key saved! 🤖' : 'API Key cleared (offline mode)');
+});
+const origOpenSettings = () => {
+  document.getElementById('geminiApiKeyInput').value = aiConfig.apiKey || '';
+  openModal('settingsModal');
+};
+document.getElementById('gmSettings').onclick = () => { closeAllCtx(); origOpenSettings(); };
+
 // CTX ACTIONS
 document.getElementById('ctxRename').addEventListener('click',()=>{closeAllCtx();if(ctxGroupId)openEditGroupModal(ctxGroupId);});
 document.getElementById('ctxDelete').addEventListener('click',()=>{closeAllCtx();if(ctxGroupId)deleteGroup(ctxGroupId);});
 document.getElementById('lctxEdit').addEventListener('click',()=>{closeAllCtx();if(ctxLinkId)openEditLinkModal(ctxLinkId);});
 document.getElementById('lctxMove').addEventListener('click',()=>{closeAllCtx();if(ctxLinkId)openMoveModal(ctxLinkId);});
 document.getElementById('lctxDelete').addEventListener('click',()=>{closeAllCtx();if(ctxLinkId)deleteLink(ctxLinkId);});
-document.getElementById('gmSettings').addEventListener('click',()=>{closeAllCtx();openModal('settingsModal');});
 document.getElementById('gmExport').addEventListener('click',()=>{closeAllCtx();exportData();});
 document.getElementById('gmImport').addEventListener('click',()=>{closeAllCtx();importData();});
 
