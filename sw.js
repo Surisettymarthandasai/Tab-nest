@@ -1,12 +1,12 @@
-// TabNest Service Worker — cache-first for shell, stale-while-revalidate for favicons
-const CACHE_NAME = 'tabnest-v1';
-const SHELL = ['./', './index.html', './manifest.json'];
+// TabNest Service Worker — v3
+// Network-First for HTML/navigation (always fresh on mobile), Cache-First for assets
+const CACHE_NAME = 'tabnest-v3';
+const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
+  self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(SHELL))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL))
   );
 });
 
@@ -36,30 +36,33 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Shell — cache-first
-  if (e.request.mode === 'navigate' || SHELL.some(s => url.pathname.endsWith(s.replace('./', '')))) {
+  // HTML / Navigation — Network-First so mobile users get latest UI immediately
+  if (e.request.mode === 'navigate' || e.request.destination === 'document' || url.pathname.endsWith('index.html') || url.pathname.endsWith('/')) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+      fetch(e.request)
+        .then(res => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+          }
           return res;
-        });
-      })
+        })
+        .catch(() => caches.match(e.request))
     );
     return;
   }
 
-  // Fonts — cache-first
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    e.respondWith(
-      caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+  // Fonts and Static Assets — Stale-While-Revalidate
+  e.respondWith(
+    caches.match(e.request).then(cached => {
+      const fetchPromise = fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+        }
         return res;
-      }))
-    );
-    return;
-  }
+      }).catch(() => cached);
+      return cached || fetchPromise;
+    })
+  );
 });
