@@ -391,6 +391,10 @@ textarea.modal-input { resize:vertical; min-height:72px; }
   transition:background 0.2s, color 0.2s;
 }
 .settings-btn:hover { background:rgba(255,255,255,0.08); color:var(--text); }
+.settings-section-label {
+  font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+  color:var(--accent); margin-bottom:4px; margin-top:4px;
+}
 /* EASTER EGG THEMES */
 body.theme-crt { filter:contrast(1.1) brightness(0.95); font-family:'Courier New',monospace !important; }
 body.theme-crt::before {
@@ -570,18 +574,81 @@ body.theme-cyber { --accent:#FF00FF; --text:#00FFFF; }
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title">Settings</div>
+
+    <!-- EXPORT -->
+    <div class="settings-section-label">Export your data</div>
     <div class="settings-row">
-      <div><div class="settings-label">Pack your nest for the journey</div><div class="settings-sub">Export all data as JSON</div></div>
+      <div>
+        <div class="settings-label">TabNest JSON</div>
+        <div class="settings-sub">Full backup — groups, links, notes</div>
+      </div>
       <button class="settings-btn" id="exportBtn">Export</button>
     </div>
     <div class="settings-row">
-      <div><div class="settings-label">Unpack your nest</div><div class="settings-sub">Import from a backup JSON</div></div>
+      <div>
+        <div class="settings-label">CSV spreadsheet</div>
+        <div class="settings-sub">Open in Excel / Sheets</div>
+      </div>
+      <button class="settings-btn" id="exportCsvBtn">Export CSV</button>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="settings-section-label" style="margin-top:16px">Import your data</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">TabNest backup JSON</div>
+        <div class="settings-sub">Restore a previous export</div>
+      </div>
       <button class="settings-btn" id="importBtn">Import</button>
     </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Brave / Chrome bookmarks JSON</div>
+        <div class="settings-sub">Auto-maps folders → nests</div>
+      </div>
+      <button class="settings-btn" id="importBraveBtn">Import</button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Browser bookmarks HTML</div>
+        <div class="settings-sub">Exported from any browser</div>
+      </div>
+      <button class="settings-btn" id="importHtmlBtn">Import</button>
+    </div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Plain URL list</div>
+        <div class="settings-sub">Paste one URL per line</div>
+      </div>
+      <button class="settings-btn" id="importUrlsBtn">Paste URLs</button>
+    </div>
+
     <div class="settings-row" style="border-bottom:none;margin-top:8px;">
       <div><div class="settings-label" style="color:var(--text-muted);font-size:12px;">TabNest v1 · by Marthanda</div></div>
     </div>
-    <input type="file" id="importFile" accept=".json" style="display:none"/>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="importFile"     accept=".json"       style="display:none"/>
+    <input type="file" id="importBraveFile" accept=".json"      style="display:none"/>
+    <input type="file" id="importHtmlFile"  accept=".html,.htm" style="display:none"/>
+  </div>
+</div>
+
+<!-- Paste URL modal -->
+<div class="modal-overlay" id="urlPasteModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Paste your URLs</div>
+    <div class="modal-label">One URL per line</div>
+    <textarea class="modal-input" id="urlPasteArea" placeholder="https://example.com&#10;https://another.com&#10;https://..." style="min-height:160px"></textarea>
+    <div class="modal-label">Add to which nest?</div>
+    <div class="group-chips" id="urlPasteGroupPicker"></div>
+    <div class="modal-label" style="margin-top:4px">Or create a new nest named:</div>
+    <input class="modal-input" type="text" id="urlPasteNewGroup" placeholder="e.g. Imported Links (leave blank to use picker above)"/>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="urlPasteCancel">Cancel</button>
+      <button class="btn-primary" id="urlPasteSave">Import links</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="aboutModal">
@@ -983,7 +1050,9 @@ function openMoveModal(lid){
   openModal('moveModal');
 }
 
-// EXPORT / IMPORT
+// ══════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════
 function exportData(){
   closeAllModals();closeAllCtx();
   paperPlane('out');
@@ -993,6 +1062,53 @@ function exportData(){
     toast('Nest packed ✈️');
   },600);
 }
+
+function exportCsv(){
+  closeAllModals();
+  const rows=['Group,Emoji,Title,URL,Note,Added'];
+  state.links.forEach(l=>{
+    const g=state.groups.find(x=>x.id===l.groupId);
+    const esc=v=>'"'+(v||'').replace(/"/g,'""')+'"';
+    rows.push([esc(g?.name||''),esc(g?.emoji||''),esc(l.title||''),esc(l.url||''),esc(l.note||''),new Date(l.createdAt).toLocaleDateString()].join(','));
+  });
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='tabnest-links.csv';a.click();
+  toast('Spreadsheet ready 📊');
+}
+
+document.getElementById('exportCsvBtn').addEventListener('click',exportCsv);
+
+// ══════════════════════════════════════════════════════════
+// IMPORT — shared helpers
+// ══════════════════════════════════════════════════════════
+const IMPORT_COLORS=['#F59E0B','#14B8A6','#F43F5E','#8B5CF6','#0EA5E9','#10B981','#F97316','#EC4899','#6366F1','#84CC16'];
+let importColorIdx=0;
+function nextImportColor(){return IMPORT_COLORS[importColorIdx++%IMPORT_COLORS.length];}
+
+function getOrCreateGroup(name,emoji='📁'){
+  let g=state.groups.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(!g){
+    g={id:uid(),name,color:nextImportColor(),emoji,order:state.groups.length+1};
+    state.groups.push(g);
+  }
+  return g;
+}
+
+function addImportedLink(url,title,note,groupId){
+  if(!url||!/^https?:\/\//i.test(url))return;
+  if(state.links.find(l=>l.url===url))return; // skip duplicates
+  const maxOrder=state.links.filter(l=>l.groupId===groupId).reduce((m,l)=>Math.max(m,l.order||0),0);
+  state.links.push({id:uid(),groupId,url,title:title||titleFromUrl(url),note:note||'',faviconUrl:FAVICON(url),createdAt:Date.now(),lastOpenedAt:null,order:maxOrder+1});
+}
+
+function finishImport(added){
+  save();
+  paperPlane('in');
+  render(document.getElementById('searchInput').value);
+  toast(`Welcome home — ${added} link${added!==1?'s':''} added 🪺`);
+}
+
+// ── 1. TabNest JSON ───────────────────────────────────────
 function importData(){document.getElementById('importFile').click();}
 document.getElementById('importFile').addEventListener('change',e=>{
   const f=e.target.files?.[0];if(!f)return;
@@ -1001,12 +1117,138 @@ document.getElementById('importFile').addEventListener('change',e=>{
     try{
       const parsed=JSON.parse(ev.target.result);
       if(!parsed.groups||!parsed.links)throw 0;
-      if(!confirm('Unpacking will replace all current data. Ready?'))return;
+      if(!confirm('Unpacking will merge with (or replace) your current data. Replace everything?')){
+        // Merge mode
+        importColorIdx=0;
+        let added=0;
+        parsed.groups.forEach(pg=>{
+          const g=getOrCreateGroup(pg.name,pg.emoji);
+          parsed.links.filter(l=>l.groupId===pg.id).forEach(l=>{ addImportedLink(l.url,l.title,l.note,g.id); added++; });
+        });
+        finishImport(added);
+        return;
+      }
       state=parsed;save();paperPlane('in');render(document.getElementById('searchInput').value);toast('Welcome home 🪺');
     }catch{toast('Could not read that file — is it a TabNest backup?');}
   };
   reader.readAsText(f);e.target.value='';
 });
+
+// ── 2. Brave / Chrome Bookmarks JSON ─────────────────────
+function importBraveData(){document.getElementById('importBraveFile').click();}
+document.getElementById('importBraveFile').addEventListener('change',e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const bm=JSON.parse(ev.target.result);
+      if(!bm.roots)throw 0;
+      importColorIdx=state.groups.length;
+      let added=0;
+
+      function walkNodes(nodes,folderName,emoji){
+        if(!nodes)return;
+        nodes.forEach(node=>{
+          if(node.type==='url'&&node.url){
+            const g=getOrCreateGroup(folderName,emoji);
+            addImportedLink(node.url,node.name,'',g.id);
+            added++;
+          } else if(node.type==='folder'&&node.children){
+            walkNodes(node.children,node.name,'📁');
+          }
+        });
+      }
+
+      // bookmark_bar → "Bookmark Bar"
+      walkNodes(bm.roots.bookmark_bar?.children,'Bookmark Bar','🔖');
+      // other
+      walkNodes(bm.roots.other?.children,'Other Bookmarks','📂');
+      // synced/mobile
+      walkNodes(bm.roots.synced?.children,'Mobile Bookmarks','📱');
+
+      finishImport(added);
+    }catch(err){
+      toast('Hmm — are you sure that\'s a Brave/Chrome Bookmarks file?');
+    }
+  };
+  reader.readAsText(f);e.target.value='';
+});
+
+// ── 3. Browser Bookmarks HTML ─────────────────────────────
+function importHtmlData(){document.getElementById('importHtmlFile').click();}
+document.getElementById('importHtmlFile').addEventListener('change',e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const parser=new DOMParser();
+      const doc=parser.parseFromString(ev.target.result,'text/html');
+      importColorIdx=state.groups.length;
+      let added=0;
+      let currentGroup='Imported';
+
+      // Walk DT/DL tree — H3 = folder name, A = link
+      const items=doc.querySelectorAll('dt');
+      items.forEach(dt=>{
+        const h3=dt.querySelector('h3');
+        if(h3){currentGroup=h3.textContent.trim()||'Imported';return;}
+        const a=dt.querySelector('a');
+        if(a&&a.href&&/^https?:\/\//i.test(a.href)){
+          const g=getOrCreateGroup(currentGroup,'📁');
+          addImportedLink(a.href,a.textContent.trim(),'',g.id);
+          added++;
+        }
+      });
+
+      // Fallback: just grab all <a> tags if DT approach got nothing
+      if(!added){
+        const allLinks=doc.querySelectorAll('a[href^="http"]');
+        const g=getOrCreateGroup('Imported','📂');
+        allLinks.forEach(a=>{addImportedLink(a.href,a.textContent.trim(),'',g.id);added++;});
+      }
+
+      finishImport(added);
+    }catch{
+      toast('Could not parse that HTML file.');
+    }
+  };
+  reader.readAsText(f);e.target.value='';
+});
+
+// ── 4. Plain URL list (paste) ─────────────────────────────
+function openUrlPasteModal(){
+  document.getElementById('urlPasteArea').value='';
+  document.getElementById('urlPasteNewGroup').value='';
+  const picker=document.getElementById('urlPasteGroupPicker');
+  let urlPasteSelectedGroup=state.groups[0]?.id||null;
+  picker.innerHTML=state.groups.map(g=>`<div class="group-chip${g.id===urlPasteSelectedGroup?' selected':''}" data-gid="${g.id}" style="--chip-color:${g.color}">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>`).join('');
+  picker.querySelectorAll('.group-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>{
+      urlPasteSelectedGroup=chip.dataset.gid;
+      picker.querySelectorAll('.group-chip').forEach(c=>c.classList.remove('selected'));
+      chip.classList.add('selected');
+    });
+  });
+  document.getElementById('urlPasteSave').onclick=()=>{
+    const raw=document.getElementById('urlPasteArea').value.trim();
+    const newGroupName=document.getElementById('urlPasteNewGroup').value.trim();
+    if(!raw){toast('Paste some URLs first!');return;}
+    const urls=raw.split(/\s+/).filter(u=>/^https?:\/\//i.test(u.trim()));
+    if(!urls.length){toast('No valid URLs found — make sure they start with https://');return;}
+    let gid;
+    if(newGroupName){gid=getOrCreateGroup(newGroupName,'📋').id;}
+    else{gid=urlPasteSelectedGroup||getOrCreateGroup('Imported','📋').id;}
+    importColorIdx=state.groups.length;
+    let added=0;
+    urls.forEach(u=>{addImportedLink(u.trim(),'','',gid);added++;});
+    closeModal('urlPasteModal');
+    finishImport(added);
+  };
+  openModal('urlPasteModal');
+  setTimeout(()=>document.getElementById('urlPasteArea').focus(),350);
+}
+
+document.getElementById('urlPasteCancel').addEventListener('click',()=>closeModal('urlPasteModal'));
 
 // ABOUT
 function openAbout(){closeAllCtx();closeAllModals();openModal('aboutModal');}
@@ -1059,6 +1301,9 @@ fabBtn.addEventListener('mouseleave',()=>clearTimeout(fabHoldTimer));
 fabBtn.addEventListener('touchstart',()=>{fabHoldTimer=setTimeout(openFabBloom,600);},{passive:true});
 fabBtn.addEventListener('touchend',()=>clearTimeout(fabHoldTimer));
 document.getElementById('menuBtn').addEventListener('click',e=>{e.stopPropagation();openCtx('globalMenu',document.getElementById('menuBtn'));});
+document.getElementById('importBraveBtn').addEventListener('click',importBraveData);
+document.getElementById('importHtmlBtn').addEventListener('click',importHtmlData);
+document.getElementById('importUrlsBtn').addEventListener('click',()=>{closeModal('settingsModal');openUrlPasteModal();});
 document.getElementById('bloomAddLink').addEventListener('click',()=>{closeFabBloom();openAddLinkModal();});
 document.getElementById('bloomAddGroup').addEventListener('click',()=>{closeFabBloom();openAddGroupModal();});
 
