@@ -1,6 +1,6 @@
-// TabNest Service Worker — v5
+// TabNest Service Worker — v6
 // Network-First for HTML/navigation, Stale-While-Revalidate for CSS/JS/Assets
-const CACHE_NAME = 'tabnest-v5';
+const CACHE_NAME = 'tabnest-v6';
 const SHELL = [
   './',
   './index.html',

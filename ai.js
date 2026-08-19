@@ -424,78 +424,155 @@ const Robin = {
     };
   },
 
-  // 10. Main Natural Language Intent Processor
+  // 10. Proactive JARVIS Nest Audit
+  runAudit() {
+    pushUndo('JARVIS Nest Audit', state);
+    const suggestions = [];
+
+    // A. Detect Misclassified links
+    state.links.forEach(l => {
+      let host = '';
+      try { host = new URL(l.url).hostname.replace(/^www\./, '').toLowerCase(); } catch {}
+      const mapped = DOMAIN_CATEGORY_MAP[host];
+      if (mapped) {
+        const currentGroup = state.groups.find(g => g.id === l.groupId);
+        if (currentGroup && currentGroup.name.toLowerCase() !== mapped.name.toLowerCase()) {
+          const targetGroup = state.groups.find(g => g.name.toLowerCase() === mapped.name.toLowerCase());
+          if (targetGroup) {
+            suggestions.push({
+              type: 'move',
+              linkId: l.id,
+              targetGroupId: targetGroup.id,
+              text: `Move **${escHtml(l.title || host)}** from *${currentGroup.name}* → *${targetGroup.emoji || '📁'} ${targetGroup.name}*`
+            });
+          }
+        }
+      }
+    });
+
+    // B. Detect Duplicate links
+    const seen = new Set();
+    const dups = [];
+    state.links.forEach(l => {
+      const norm = (l.url || '').trim().replace(/\/+$/, '').toLowerCase();
+      if (seen.has(norm)) dups.push(l);
+      else seen.add(norm);
+    });
+
+    if (dups.length > 0) {
+      suggestions.push({
+        type: 'dedup',
+        text: `Purge ${dups.length} duplicate link${dups.length > 1 ? 's' : ''}`
+      });
+    }
+
+    // C. Detect Unsorted links
+    const unassigned = state.links.filter(l => !l.groupId || !state.groups.some(g => g.id === l.groupId));
+    if (unassigned.length > 0) {
+      suggestions.push({
+        type: 'organize',
+        text: `Auto-categorize ${unassigned.length} unsorted link${unassigned.length > 1 ? 's' : ''}`
+      });
+    }
+
+    // D. Stale links check (> 30 days)
+    const staleCutoff = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const stale = state.links.filter(l => !l.lastOpenedAt || l.lastOpenedAt < staleCutoff);
+
+    if (!suggestions.length && !stale.length) {
+      return {
+        text: `🎩 **Good day, sir.** I have conducted a thorough diagnostic scan across all **${state.groups.length} nests** and **${state.links.length} links**.\n\nEverything is in immaculate order. No duplicates, no misplaced links, and all systems are running at peak efficiency.`
+      };
+    }
+
+    return {
+      text: `🎩 **At your service, sir.** I have completed a full diagnostic audit of your **${state.links.length} links** across **${state.groups.length} nests**.\n\n` +
+            `**Diagnostic Observations:**\n` +
+            (suggestions.length ? suggestions.map(s => `• ${s.text}`).join('\n') + '\n\n' : '') +
+            (stale.length ? `• 🪶 **${stale.length} links** have remained unopened for 30+ days.\n\n` : '') +
+            `*Shall I execute the automated optimizations for you, sir?*`,
+      auditSuggestions: suggestions,
+      canUndo: true
+    };
+  },
+
+  // 11. Main Natural Language Intent Processor
   async processQuery(userInput) {
     const input = userInput.trim();
-    if (!input) return { text: "How can I help you manage your links today? Ask me to *clean duplicates*, *organize unsorted*, *sort A-Z*, or *find links*." };
+    if (!input) return { text: "🎩 **At your service, sir.** Ask me to *audit your nests*, *clean duplicates*, *organize unsorted*, *sort A-Z*, or *find any link*." };
 
     const lower = input.toLowerCase();
 
-    // ── A. Undo Commands ──
+    // ── A. JARVIS Audit & Scan ──
+    if (/(audit|scan|diagnostic|analyze|check nest|jarvis|butler|inspect)/i.test(lower)) {
+      return this.runAudit();
+    }
+
+    // ── B. Undo Commands ──
     if (/(undo|revert)/i.test(lower)) {
       if (undoLastAction()) {
-        return { text: "↺ **Action undone!** Restored previous nest state." };
+        return { text: "↺ **Action undone, sir.** Restored previous nest state." };
       } else {
-        return { text: "There are no previous actions in history to undo." };
+        return { text: "There are no previous actions in history to undo, sir." };
       }
     }
 
-    // ── B. Duplicate Cleanup ──
+    // ── C. Duplicate Cleanup ──
     if (/(duplicate|dedup|clean up|remove duplicate|delete duplicate)/i.test(lower)) {
       return this.cleanDuplicates();
     }
 
-    // ── C. Auto-Organize Links ──
+    // ── D. Auto-Organize Links ──
     if (/(auto.?organize|organize|categorize|sort unsorted|fix unsorted)/i.test(lower)) {
       return this.autoOrganizeUnsorted();
     }
 
-    // ── D. Alphabetical Sort ──
+    // ── E. Alphabetical Sort ──
     if (/(sort.*(a.?z|alphabet|name)|alphabetical|sort nests)/i.test(lower)) {
       return this.sortAlphabetical();
     }
 
-    // ── E. Stats & Digest ──
+    // ── F. Stats & Digest ──
     if (/(stat|statistic|analytic|summary|overview|breakdown|how many links|health|metrics)/i.test(lower)) {
       return this.getStats();
     }
 
-    // ── F. Stale Links / Health ──
+    // ── G. Stale Links / Health ──
     if (/(stale|unopened|quiet|detox|old link|inactive link|unvisited)/i.test(lower)) {
       return this.checkStaleLinks(14);
     }
 
-    // ── G. Export Data ──
+    // ── H. Export Data ──
     if (/(export|backup|download data|save backup)/i.test(lower)) {
       exportData();
-      return { text: "✈️ **Export started!** Your TabNest JSON backup is downloading." };
+      return { text: "✈️ **Export initialized, sir.** Your TabNest JSON backup is downloading." };
     }
 
-    // ── H. Theme Change ──
+    // ── I. Theme Change ──
     if (/(change theme|cycle theme|switch theme|dark mode|matrix|cyberpunk|crt)/i.test(lower)) {
       cycleTheme();
-      return { text: "🎨 **Theme cycled!**" };
+      return { text: "🎨 **Theme cycled, sir!**" };
     }
 
-    // ── I. Delete Link Command: "delete link <X>" or "remove link <X>" ──
+    // ── J. Delete Link Command: "delete link <X>" or "remove link <X>" ──
     const deleteMatch = input.match(/(?:delete|remove)\s+(?:the\s+)?(?:link\s+)?["']?([^"']+)["']?/i);
     if (deleteMatch && deleteMatch[1] && !deleteMatch[1].includes('duplicate') && !deleteMatch[1].includes('nest')) {
       return this.deleteSpecificLink(deleteMatch[1].trim());
     }
 
-    // ── J. Move Link Command: "move <X> to <Y>" ──
+    // ── K. Move Link Command: "move <X> to <Y>" ──
     const moveMatch = input.match(/move\s+["']?(.+?)["']?\s+to\s+["']?(.+?)["']?$/i);
     if (moveMatch && moveMatch[1] && moveMatch[2]) {
       return this.moveLink(moveMatch[1].trim(), moveMatch[2].trim());
     }
 
-    // ── K. Create Nest Command: "create nest <X>" ──
+    // ── L. Create Nest Command: "create nest <X>" ──
     const createMatch = input.match(/(?:create|new|add)\s+(?:a\s+)?nest\s+(?:named|called\s+)?["']?([^"']+)["']?/i);
     if (createMatch && createMatch[1]) {
       return this.createNest(createMatch[1].trim(), '📁', '#F59E0B');
     }
 
-    // ── L. URL Pasted Directly ──
+    // ── M. URL Pasted Directly ──
     if (/^https?:\/\//i.test(input)) {
       let host = '';
       try { host = new URL(input).hostname.replace(/^www\./, '').toLowerCase(); } catch {}
@@ -505,7 +582,7 @@ const Robin = {
         assignedGroup = state.groups.find(g => g.name.toLowerCase() === mapped.name.toLowerCase());
       }
       return {
-        text: `🔗 **Detected URL:** \`${input}\`\n\nWould you like to save this to **${assignedGroup ? `${assignedGroup.emoji || '📁'} ${assignedGroup.name}` : 'Unsorted'}**?`,
+        text: `🔗 **Detected URL:** \`${input}\`\n\nWould you like me to store this in **${assignedGroup ? `${assignedGroup.emoji || '📁'} ${assignedGroup.name}` : 'Unsorted'}**, sir?`,
         suggestedLink: {
           url: input,
           title: titleFromUrl(input),
@@ -514,20 +591,20 @@ const Robin = {
       };
     }
 
-    // ── M. Optional Gemini LLM Fallback ──
+    // ── N. Optional Gemini LLM Fallback ──
     if (aiConfig.apiKey && aiConfig.provider === 'gemini') {
       try {
         return await this.callGeminiLLM(input);
       } catch (err) {
-        console.warn('Gemini LLM error, falling back to smart search:', err);
+        console.warn('Gemini API call error:', err);
       }
     }
 
-    // ── N. High-Precision Smart Search (Default Fallback) ──
+    // ── O. Default Smart Search ──
     return this.smartSearch(input);
   },
 
-  // 11. LLM Engine with full Context
+  // 12. LLM Engine with full Context
   async callGeminiLLM(userPrompt) {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${aiConfig.model || 'gemini-1.5-flash'}:generateContent?key=${aiConfig.apiKey}`;
 
@@ -579,27 +656,21 @@ Answer questions accurately, find links, summarize bookmarks, and explain why li
   }
 };
 
-// ── UI Controller for Robin Assistant ─────────────────────
+// ── UI Controller for Robin Modal ─────────────────────────
 function openRobinChat(initialPrompt = '') {
   const modal = document.getElementById('robinModal');
-  if (!modal) return;
-  closeAllCtx();
-  closeAllModals();
-  openModal('robinModal');
-
-  const chatContainer = document.getElementById('robinMessages');
-  if (chatContainer && chatContainer.children.length === 0) {
-    appendRobinMessage('bot', `👋 Hi! I'm **Robin**, your link manager.\n\nAsk me to **clean duplicates**, **auto-organize**, **sort A-Z**, or search for any bookmark!`);
-  }
-
+  const messages = document.getElementById('robinMessages');
   const input = document.getElementById('robinInput');
-  if (input) {
-    if (initialPrompt) {
-      input.value = initialPrompt;
-      handleRobinSend();
-    } else {
-      setTimeout(() => input.focus(), 300);
+
+  if (modal) {
+    modal.classList.add('open');
+    if (messages && messages.children.length === 0) {
+      appendRobinMessage('bot',
+        `🎩 **Good day, sir. I am Robin, your TabNest Butler.**\n\n` +
+        `I continuously monitor your link ecosystem. Tap **🎙️ JARVIS Audit** to diagnose your nests, or ask me to find, organize, move, or clean any tab.`
+      );
     }
+    setTimeout(() => input?.focus(), 300);
   }
 }
 
@@ -617,6 +688,39 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
     .replace(/\n/g, '<br/>');
 
   msgDiv.innerHTML = `<div class="robin-bubble">${html}</div>`;
+
+  // Render JARVIS Audit Batch Actions
+  if (extras.auditSuggestions && extras.auditSuggestions.length) {
+    const auditDiv = document.createElement('div');
+    auditDiv.className = 'jarvis-audit-box';
+    auditDiv.innerHTML = `
+      <div class="jarvis-header">
+        <span>⚡ Diagnostic Actions Available</span>
+      </div>
+      <button class="jarvis-apply-all">✨ Execute All Optimizations</button>
+    `;
+
+    auditDiv.querySelector('.jarvis-apply-all').addEventListener('click', () => {
+      pushUndo('Apply All JARVIS Optimizations', state);
+      extras.auditSuggestions.forEach(s => {
+        if (s.type === 'move') {
+          const l = state.links.find(x => x.id === s.linkId);
+          if (l) l.groupId = s.targetGroupId;
+        } else if (s.type === 'dedup') {
+          Robin.cleanDuplicates();
+        } else if (s.type === 'organize') {
+          Robin.autoOrganizeUnsorted();
+        }
+      });
+      save();
+      render(document.getElementById('searchInput')?.value || '');
+      confetti('#8B5CF6');
+      auditDiv.remove();
+      appendRobinMessage('bot', `🎩 **All optimizations executed flawlessly, sir.** Your nests are in pristine order.`, { canUndo: true });
+    });
+
+    msgDiv.appendChild(auditDiv);
+  }
 
   // Render link cards with favicons & 1-tap open
   if (extras.links && extras.links.length) {
@@ -683,7 +787,7 @@ function appendRobinMessage(sender, markdownText, extras = {}) {
       render(document.getElementById('searchInput')?.value || '');
       toast('Link saved to nest 🪺');
       saveBtn.remove();
-      appendRobinMessage('bot', `✓ Saved **${escHtml(sl.title)}**!`);
+      appendRobinMessage('bot', `✓ Stored **${escHtml(sl.title)}** in nest, sir.`);
     });
     msgDiv.appendChild(saveBtn);
   }
@@ -714,7 +818,8 @@ async function handleRobinSend() {
     appendRobinMessage('bot', res.text, {
       links: res.links,
       canUndo: res.canUndo,
-      suggestedLink: res.suggestedLink
+      suggestedLink: res.suggestedLink,
+      auditSuggestions: res.auditSuggestions
     });
   } catch (err) {
     typingDiv.remove();

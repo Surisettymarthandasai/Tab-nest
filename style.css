@@ -428,17 +428,139 @@ body.theme-cyber { --accent:#FF00FF; --text:#00FFFF; }
 /* ═══════════════════════════════════════════════
    ROBIN AI ASSISTANT STYLING
 ═══════════════════════════════════════════════ */
-#robinBtn {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(240,165,0,0.2));
-  border: 1px solid rgba(139,92,246,0.3);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; cursor: pointer; flex-shrink: 0;
-  transition: transform 0.15s var(--spring), box-shadow 0.2s, border-color 0.2s;
+/* ═══════════════════════════════════════════════
+   DIRECT SEARCH RESULTS
+═══════════════════════════════════════════════ */
+#searchResultsList { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.search-res-count {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: var(--accent); margin-bottom: 8px;
 }
-#robinBtn:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,0.35); border-color: rgba(139,92,246,0.5); }
-#robinBtn:active { transform: scale(0.92); }
 
+/* ═══════════════════════════════════════════════
+   DRAG AND DROP REORDERING
+═══════════════════════════════════════════════ */
+.group-card { touch-action: manipulation; user-select: none; }
+.group-card.dragging {
+  opacity: 0.35 !important;
+  transform: scale(0.92) !important;
+  border-style: dashed !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px rgba(240,165,0,0.3) !important;
+}
+.group-card.drag-over {
+  border-color: var(--accent) !important;
+  transform: translateY(-4px) scale(1.03) !important;
+  box-shadow: 0 12px 32px rgba(240,165,0,0.35) !important;
+}
+
+/* ═══════════════════════════════════════════════
+   3D HOLOGRAPHIC BIRD (JARVIS ROBIN)
+═══════════════════════════════════════════════ */
+.robin-3d-btn {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.25), rgba(240,165,0,0.25));
+  border: 1.5px solid rgba(139,92,246,0.4);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(139,92,246,0.25);
+  transition: transform 0.2s var(--spring), box-shadow 0.2s, border-color 0.2s;
+}
+.robin-3d-btn:hover {
+  transform: scale(1.1) rotate(4deg);
+  box-shadow: 0 0 24px rgba(240,165,0,0.5), inset 0 0 12px rgba(139,92,246,0.4);
+  border-color: var(--accent);
+}
+.robin-3d-btn:active { transform: scale(0.92); }
+
+.bird-glow-ring {
+  position: absolute; inset: -4px; border-radius: 16px; pointer-events: none;
+  background: radial-gradient(circle, rgba(240,165,0,0.4) 0%, rgba(139,92,246,0.2) 60%, transparent 80%);
+  animation: birdAura 3s ease-in-out infinite alternate;
+  z-index: 0;
+}
+@keyframes birdAura {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(1.25); opacity: 0.9; }
+}
+
+.bird-svg {
+  width: 26px; height: 26px; z-index: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+  animation: birdHover 2.6s ease-in-out infinite;
+}
+@keyframes birdHover {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(-3deg); }
+}
+
+.bird-wing-left {
+  transform-origin: 12px 14px;
+  animation: wingFlap 1.8s ease-in-out infinite;
+}
+.bird-wing-right {
+  transform-origin: 16px 14px;
+  animation: wingFlap 1.8s ease-in-out infinite 0.1s;
+}
+@keyframes wingFlap {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(12deg) translateY(-1px); }
+}
+
+.bird-eye {
+  animation: eyeBlink 3.6s infinite;
+}
+@keyframes eyeBlink {
+  0%, 94%, 100% { opacity: 1; transform: scaleY(1); }
+  96% { opacity: 0; transform: scaleY(0.1); }
+}
+
+/* Big 3D Bird in Modal Header */
+.robin-3d-avatar-large {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8B5CF6 0%, #1E1B4B 60%, #0D1117 100%);
+  border: 2px solid rgba(240,165,0,0.6);
+  box-shadow: 0 0 20px rgba(139,92,246,0.4), inset 0 0 10px rgba(240,165,0,0.4);
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.robin-3d-avatar-large .bird-svg { width: 30px; height: 30px; }
+
+/* JARVIS Proposal Card */
+.jarvis-audit-box {
+  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(240,165,0,0.08));
+  border: 1px solid rgba(139,92,246,0.3); border-radius: 14px;
+  padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 8px;
+}
+.jarvis-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.jarvis-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; background: rgba(0,0,0,0.25); border-radius: 8px;
+  border: 1px solid var(--border); font-size: 12px;
+}
+.jarvis-btn-row { display: flex; gap: 6px; margin-top: 4px; }
+.jarvis-apply-all {
+  padding: 8px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700;
+  background: linear-gradient(135deg, #F59E0B, #8B5CF6); color: #fff; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(240,165,0,0.3); transition: transform 0.15s;
+}
+.jarvis-apply-all:active { transform: scale(0.95); }
+
+/* Custom emoji input */
+.custom-emoji-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+#customEmojiInput {
+  width: 70px; text-align: center; font-size: 24px; padding: 6px;
+  border-radius: 10px; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); outline: none;
+}
+#customEmojiInput:focus { border-color: var(--accent); }
+
+/* ═══════════════════════════════════════════════
+   ROBIN AI ASSISTANT MODAL
+═══════════════════════════════════════════════ */
 .robin-modal-sheet {
   max-height: 85vh; height: 75vh;
   display: flex; flex-direction: column; padding-bottom: calc(14px + env(safe-area-inset-bottom));
@@ -447,15 +569,10 @@ body.theme-cyber { --accent:#FF00FF; --text:#00FFFF; }
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
-.robin-title-wrap { display: flex; align-items: center; gap: 8px; }
-.robin-avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background: linear-gradient(135deg, #8B5CF6, #F59E0B);
-  display: flex; align-items: center; justify-content: center; font-size: 17px;
-}
-.robin-name { font-size: 15px; font-weight: 700; color: var(--text); }
-.robin-status { font-size: 11px; color: #10B981; display: flex; align-items: center; gap: 4px; }
-.robin-status::before { content: ''; width: 6px; height: 6px; background: #10B981; border-radius: 50%; display: inline-block; }
+.robin-title-wrap { display: flex; align-items: center; gap: 10px; }
+.robin-name { font-size: 15px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
+.robin-status { font-size: 11px; color: #10B981; display: flex; align-items: center; gap: 4px; font-weight: 600; }
+.robin-status::before { content: ''; width: 6px; height: 6px; background: #10B981; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px #10B981; }
 
 .robin-chips {
   display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px;

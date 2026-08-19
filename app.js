@@ -192,32 +192,22 @@ function render(q=''){
   const grid=document.getElementById('groupGrid');
   const empty=document.getElementById('emptyState');
   const noSearch=document.getElementById('noSearchState');
-  const recentSec=document.getElementById('recentSection');
+  const searchResults=document.getElementById('searchResultsList');
   const groupsLbl=document.getElementById('groupsLabel');
   const unassignedSec=document.getElementById('unassignedSection');
   const unassignedList=document.getElementById('unassignedList');
   const unassignedLbl=document.getElementById('unassignedLabel');
 
-  const ql=q.toLowerCase();
+  const ql=q.toLowerCase().trim();
   if(ql==='tabnest')openAbout();
 
-  // 1. Recently opened
-  const recent=[...state.links].filter(l=>l.lastOpenedAt).sort((a,b)=>b.lastOpenedAt-a.lastOpenedAt).slice(0,10);
-  if(recent.length&&!ql){
-    recentSec.style.display='block';
-    document.getElementById('recentList').innerHTML=recent.map(l=>`
-      <div class="recent-chip" data-lid="${l.id}" title="${escHtml(l.title||l.url)}">
-        ${faviconImg(l.url,'recent-chip-favicon')}
-        <span class="recent-chip-title">${escHtml(l.title||l.url)}</span>
-      </div>`).join('');
-    document.querySelectorAll('.recent-chip').forEach(c=>c.addEventListener('click',e=>openLink(c.dataset.lid,e)));
-  } else { recentSec.style.display='none'; }
-
-  // 2. Empty check
   const totalLinks=state.links.length;
   const totalGroups=state.groups.length;
+
+  // 1. If global database is completely empty
   if(totalLinks===0 && totalGroups===0){
     grid.innerHTML='';
+    if(searchResults) searchResults.innerHTML='';
     if(unassignedList) unassignedList.innerHTML='';
     empty.style.display='flex';
     noSearch.style.display='none';
@@ -227,23 +217,78 @@ function render(q=''){
   }
   empty.style.display='none';
 
-  // 3. Render Groups (if any)
-  let groupMatchesCount = 0;
+  // 2. DIRECT WEBSITE SEARCH MODE (when search query exists)
+  if(ql){
+    if(groupsLbl) groupsLbl.style.display='none';
+    if(grid) grid.style.display='none';
+    if(unassignedSec) unassignedSec.style.display='none';
+
+    // Token-based matching across all links
+    const tokens=ql.split(/\s+/).filter(Boolean);
+    const matchedLinks=state.links.filter(l=>{
+      const t=(l.title||'').toLowerCase();
+      const u=(l.url||'').toLowerCase();
+      const n=(l.note||'').toLowerCase();
+      const g=state.groups.find(x=>x.id===l.groupId);
+      const gn=(g?.name||'').toLowerCase();
+      return tokens.every(tk=>t.includes(tk)||u.includes(tk)||n.includes(tk)||gn.includes(tk));
+    });
+
+    if(matchedLinks.length > 0){
+      noSearch.style.display='none';
+      searchResults.style.display='flex';
+      searchResults.innerHTML=`
+        <div class="search-res-count">${matchedLinks.length} matching website${matchedLinks.length > 1 ? 's' : ''}</div>
+        ${matchedLinks.map(l=>{
+          const g=state.groups.find(x=>x.id===l.groupId);
+          return `
+            <div class="link-item" data-lid="${l.id}">
+              ${faviconImg(l.url,'link-favicon')}
+              <div class="link-info">
+                <div class="link-title">${escHtml(l.title||l.url)}</div>
+                <div class="link-url">${escHtml(l.url)} ${g ? `&middot; <span style="color:${g.color}">${g.emoji||'📁'} ${escHtml(g.name)}</span>` : ''}</div>
+                ${l.note?`<div class="link-note">${escHtml(l.note)}</div>`:''}
+              </div>
+              <div class="link-actions">
+                <button class="link-action-btn" data-lid="${l.id}" aria-label="Options">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+                </button>
+              </div>
+            </div>`;
+        }).join('')}
+      `;
+
+      searchResults.querySelectorAll('.link-item').forEach(item=>{
+        item.addEventListener('click',e=>{if(e.target.closest('.link-action-btn'))return;ripple(item,e);openLink(item.dataset.lid,e);});
+      });
+      searchResults.querySelectorAll('.link-action-btn').forEach(btn=>{
+        btn.addEventListener('click',e=>{e.stopPropagation();ctxLinkId=btn.dataset.lid;openCtx('linkCtxMenu',btn);});
+      });
+    } else {
+      searchResults.style.display='none';
+      searchResults.innerHTML='';
+      noSearch.style.display='flex';
+    }
+    return;
+  }
+
+  // 3. NORMAL NEST & LINK VIEW (when no search query)
+  if(searchResults) { searchResults.style.display='none'; searchResults.innerHTML=''; }
+  noSearch.style.display='none';
+
+  // Render Groups
   if(totalGroups > 0){
+    groupsLbl.style.display='block';
     grid.style.display='grid';
     grid.innerHTML=state.groups.map((g,gi)=>{
       const links=state.links.filter(l=>l.groupId===g.id).sort((a,b)=>(a.order||0)-(b.order||0));
-      const matchLinks=ql?links.filter(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql)):links;
-      const show=ql?matchLinks:links;
-      const matches=!ql||(g.name.toLowerCase().includes(ql)||matchLinks.length>0);
-      if(matches) groupMatchesCount++;
-      const overflow=show.length-4;
+      const overflow=links.length-4;
       const tiles=[0,1,2,3].map(i=>{
         if(i===3&&overflow>0)return `<div class="tile"><span class="tile-overflow">+${overflow}</span></div>`;
-        if(i<show.length)return `<div class="tile" data-lid="${show[i].id}" data-url="${escHtml(show[i].url)}">${faviconImg(show[i].url)}</div>`;
+        if(i<links.length)return `<div class="tile" data-lid="${links[i].id}" data-url="${escHtml(links[i].url)}">${faviconImg(links[i].url)}</div>`;
         return `<div class="tile tile-empty"></div>`;
       }).join('');
-      return `<div class="group-card ${ql&&!matches?'search-dim':''} ${ql&&matches?'search-match':''}" data-gid="${g.id}" style="${ql&&matches?`--match-color:${g.color}`:''}; animation-delay:${gi*0.04}s">
+      return `<div class="group-card" draggable="true" data-gid="${g.id}" style="animation-delay:${gi*0.04}s">
         <div class="card-header">
           <div class="card-dot" style="background:${g.color}"></div>
           <div class="card-name">${g.emoji?escHtml(g.emoji)+' ':''}${escHtml(g.name)}</div>
@@ -252,48 +297,39 @@ function render(q=''){
         <div class="card-tiles" data-gid="${g.id}">${tiles}</div>
       </div>`;
     }).join('');
-    groupsLbl.style.display = (!ql || groupMatchesCount > 0) ? 'block' : 'none';
+
+    setupGroupDragAndDrop();
   } else {
     groupsLbl.style.display='none';
     grid.innerHTML='';
     grid.style.display='none';
   }
 
-  // 4. Render Unassigned / Standalone Links
+  // Render Unassigned / Standalone Links
   const unassigned=state.links.filter(l=>!l.groupId || !state.groups.some(g=>g.id===l.groupId)).sort((a,b)=>(a.order||0)-(b.order||0));
-  const matchUnassigned=ql ? unassigned.filter(l=>(l.title||'').toLowerCase().includes(ql)||(l.url||'').toLowerCase().includes(ql)) : unassigned;
-
   if(unassigned.length > 0){
     unassignedSec.style.display='block';
     unassignedLbl.textContent = totalGroups > 0 ? 'Saved Links' : 'Your Links';
-    if(matchUnassigned.length > 0){
-      unassignedList.innerHTML = matchUnassigned.map(l=>`
-        <div class="link-item" data-lid="${l.id}">
-          ${faviconImg(l.url,'link-favicon')}
-          <div class="link-info">
-            <div class="link-title">${escHtml(l.title||l.url)}</div>
-            <div class="link-url">${escHtml(l.url)}</div>
-            ${l.note?`<div class="link-note">${escHtml(l.note)}</div>`:''}
-          </div>
-          <div class="link-actions">
-            <button class="link-action-btn" data-lid="${l.id}" aria-label="Options">
-              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
-            </button>
-          </div>
-        </div>`).join('');
-    } else {
-      unassignedList.innerHTML = '';
-    }
+    unassignedList.innerHTML = unassigned.map(l=>`
+      <div class="link-item" data-lid="${l.id}">
+        ${faviconImg(l.url,'link-favicon')}
+        <div class="link-info">
+          <div class="link-title">${escHtml(l.title||l.url)}</div>
+          <div class="link-url">${escHtml(l.url)}</div>
+          ${l.note?`<div class="link-note">${escHtml(l.note)}</div>`:''}
+        </div>
+        <div class="link-actions">
+          <button class="link-action-btn" data-lid="${l.id}" aria-label="Options">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>`).join('');
   } else {
     unassignedSec.style.display='none';
     unassignedList.innerHTML='';
   }
 
-  // 5. No search matches
-  const hasMatches = !ql || (groupMatchesCount > 0) || (matchUnassigned.length > 0);
-  noSearch.style.display = (ql && !hasMatches) ? 'flex' : 'none';
-
-  // 6. Wire group cards
+  // Wire group cards
   document.querySelectorAll('.group-card').forEach(card=>{
     card.addEventListener('click',e=>{
       if(e.target.closest('.card-kebab')||e.target.closest('.tile[data-lid]'))return;
@@ -307,13 +343,116 @@ function render(q=''){
     btn.addEventListener('click',e=>{e.stopPropagation();ctxGroupId=btn.dataset.gid;openCtx('ctxMenu',btn);});
   });
 
-  // 7. Wire unassigned link items
+  // Wire unassigned link items
   unassignedList.querySelectorAll('.link-item').forEach(item=>{
     item.addEventListener('click',e=>{if(e.target.closest('.link-action-btn'))return;ripple(item,e);openLink(item.dataset.lid,e);});
   });
   unassignedList.querySelectorAll('.link-action-btn').forEach(btn=>{
     btn.addEventListener('click',e=>{e.stopPropagation();ctxLinkId=btn.dataset.lid;openCtx('linkCtxMenu',btn);});
   });
+}
+
+// ── DRAG AND DROP FOR NESTS ───────────────────────────────
+let draggedGid = null;
+
+function setupGroupDragAndDrop(){
+  const cards = document.querySelectorAll('.group-card');
+  cards.forEach(card => {
+    // Desktop Drag & Drop
+    card.addEventListener('dragstart', e => {
+      draggedGid = card.dataset.gid;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      haptic([15]);
+    });
+
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card.dataset.gid !== draggedGid) {
+        card.classList.add('drag-over');
+      }
+    });
+
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drag-over');
+    });
+
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const targetGid = card.dataset.gid;
+      if (draggedGid && targetGid && draggedGid !== targetGid) {
+        reorderGroups(draggedGid, targetGid);
+      }
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.group-card').forEach(c => c.classList.remove('drag-over'));
+      draggedGid = null;
+    });
+
+    // Touch Drag & Drop for Mobile
+    let touchHoldTimer = null;
+    let touchDragging = false;
+
+    card.addEventListener('touchstart', e => {
+      if (e.target.closest('.card-kebab') || e.target.closest('.tile')) return;
+      touchHoldTimer = setTimeout(() => {
+        touchDragging = true;
+        draggedGid = card.dataset.gid;
+        card.classList.add('dragging');
+        haptic([25]);
+      }, 350);
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      if (!touchDragging) {
+        clearTimeout(touchHoldTimer);
+        return;
+      }
+      const touch = e.touches[0];
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+      const overCard = targetEl?.closest('.group-card');
+
+      document.querySelectorAll('.group-card').forEach(c => c.classList.remove('drag-over'));
+      if (overCard && overCard.dataset.gid !== draggedGid) {
+        overCard.classList.add('drag-over');
+      }
+    }, { passive: true });
+
+    card.addEventListener('touchend', e => {
+      clearTimeout(touchHoldTimer);
+      if (touchDragging) {
+        touchDragging = false;
+        card.classList.remove('dragging');
+        const touch = e.changedTouches[0];
+        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+        const overCard = targetEl?.closest('.group-card');
+        document.querySelectorAll('.group-card').forEach(c => c.classList.remove('drag-over'));
+
+        if (overCard && draggedGid && overCard.dataset.gid !== draggedGid) {
+          reorderGroups(draggedGid, overCard.dataset.gid);
+        }
+        draggedGid = null;
+      }
+    }, { passive: true });
+  });
+}
+
+function reorderGroups(fromGid, toGid){
+  const fromIdx = state.groups.findIndex(g => g.id === fromGid);
+  const toIdx = state.groups.findIndex(g => g.id === toGid);
+  if (fromIdx < 0 || toIdx < 0) return;
+
+  const [movedGroup] = state.groups.splice(fromIdx, 1);
+  state.groups.splice(toIdx, 0, movedGroup);
+  state.groups.forEach((g, i) => { g.order = i + 1; });
+
+  save();
+  haptic([10, 10]);
+  render(document.getElementById('searchInput')?.value || '');
 }
 
 // ── RENDER GROUP VIEW ─────────────────────────────────────
@@ -452,6 +591,8 @@ function openAddGroupModal(){
   document.getElementById('groupModalSave').textContent='Create nest';
   document.getElementById('groupName').value='';
   selectedColor=COLORS[0].hex;selectedEmoji=EMOJIS[0];
+  const customInp = document.getElementById('customEmojiInput');
+  if(customInp) customInp.value = selectedEmoji;
   renderColorPicker();renderEmojiPicker();
   openModal('groupModal');
   setTimeout(()=>document.getElementById('groupName').focus(),350);
@@ -463,6 +604,8 @@ function openEditGroupModal(gid){
   document.getElementById('groupModalSave').textContent='Save changes';
   document.getElementById('groupName').value=g.name;
   selectedColor=g.color;selectedEmoji=g.emoji||EMOJIS[0];
+  const customInp = document.getElementById('customEmojiInput');
+  if(customInp) customInp.value = selectedEmoji;
   renderColorPicker();renderEmojiPicker();
   openModal('groupModal');
 }
@@ -471,19 +614,37 @@ function renderColorPicker(){
   document.querySelectorAll('.color-swatch').forEach(sw=>{sw.addEventListener('click',()=>{selectedColor=sw.dataset.color;document.querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));sw.classList.add('selected');});});
 }
 function renderEmojiPicker(){
+  const customInp = document.getElementById('customEmojiInput');
+  if(customInp){
+    customInp.oninput = () => {
+      const v = customInp.value.trim();
+      if(v) selectedEmoji = v;
+      document.querySelectorAll('.emoji-opt').forEach(o=>o.classList.toggle('selected', o.dataset.emoji === selectedEmoji));
+    };
+  }
   document.getElementById('emojiPicker').innerHTML=EMOJIS.map(em=>`<div class="emoji-opt${em===selectedEmoji?' selected':''}" data-emoji="${em}">${em}</div>`).join('');
-  document.querySelectorAll('.emoji-opt').forEach(opt=>{opt.addEventListener('click',()=>{selectedEmoji=opt.dataset.emoji;document.querySelectorAll('.emoji-opt').forEach(o=>o.classList.remove('selected'));opt.classList.add('selected');});});
+  document.querySelectorAll('.emoji-opt').forEach(opt=>{
+    opt.addEventListener('click',()=>{
+      selectedEmoji=opt.dataset.emoji;
+      if(customInp) customInp.value = selectedEmoji;
+      document.querySelectorAll('.emoji-opt').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+    });
+  });
 }
 function saveGroup(){
   const name=document.getElementById('groupName').value.trim();
   if(!name){toast('A nest needs a name');return;}
+  const customInp = document.getElementById('customEmojiInput');
+  const emoji = (customInp && customInp.value.trim()) ? customInp.value.trim() : (selectedEmoji || '📁');
+
   if(editingGroupId){
     const idx=state.groups.findIndex(x=>x.id===editingGroupId);
-    if(idx>-1)Object.assign(state.groups[idx],{name,color:selectedColor,emoji:selectedEmoji});
+    if(idx>-1)Object.assign(state.groups[idx],{name,color:selectedColor,emoji});
     toast('Nest updated ✓');
   } else {
     const maxOrder=state.groups.reduce((m,g)=>Math.max(m,g.order||0),0);
-    state.groups.push({id:uid(),name,color:selectedColor,emoji:selectedEmoji,order:maxOrder+1});
+    state.groups.push({id:uid(),name,color:selectedColor,emoji,order:maxOrder+1});
     confetti(selectedColor);toast('New nest created 🪺');
   }
   save();closeModal('groupModal');render(document.getElementById('searchInput').value);
